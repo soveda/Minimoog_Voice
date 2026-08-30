@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Minimoog Voice Lab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="lab-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Workshop Computer / 01</p>
+        <h1>Minimoog Voice Lab</h1>
+      </div>
+      <div class="topbar-actions">
+        <div class="theme-toggle" role="group" aria-label="Colour theme">
+          <button type="button" data-theme="light">Light</button>
+          <button type="button" data-theme="dark">Dark</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel-map" aria-label="Physical panel mapping">
+      <div><span>Middle</span><strong>Cutoff · Oscillator mix · Contour</strong></div>
+      <div><span>Up</span><strong>OSC 1 range · OSC 2 interval · Fine tune</strong></div>
+      <div><span>Hold down</span><strong>OSC 3 CV · External LFO depth · Destination</strong></div>
+      <div><span>Long hold</span><strong>4 s warning · 5 s preset selection</strong></div>
+    </section>
+
+    <section class="control-grid">
+      <fieldset class="module oscillator">
+        <legend>Oscillator 1</legend>
+        <label>Range<select><option>32'</option><option>16'</option><option selected>8'</option><option>4'</option><option>2'</option></select></label>
+        <label>Waveform<select><option>Triangle</option><option selected>Sawtooth</option><option>Square</option><option>Pulse</option></select></label>
+        <label>Level<input data-unit="%" type="range" min="0" max="100" value="82"></label>
+      </fieldset>
+
+      <fieldset class="module oscillator">
+        <legend>Oscillator 2</legend>
+        <label>Range<select><option>32'</option><option>16'</option><option selected>8'</option><option>4'</option><option>2'</option></select></label>
+        <label>Waveform<select><option>Triangle</option><option>Sawtooth</option><option selected>Square</option><option>Pulse</option></select></label>
+        <label>Interval<input data-unit="st" type="range" min="-24" max="24" value="0"></label>
+        <label>Fine tune<input data-unit="ct" type="range" min="-50" max="50" value="0"></label>
+        <label>Level<input data-unit="%" type="range" min="0" max="100" value="70"></label>
+      </fieldset>
+
+      <fieldset class="module external">
+        <legend>External Oscillator 3</legend>
+        <label>Pitch CV range<select><option>Off</option><option selected>1V / octave</option><option>Wide</option></select></label>
+        <label>Pitch offset<input data-unit="st" type="range" min="-24" max="24" value="0"></label>
+        <label>Audio return<input data-unit="%" type="range" min="0" max="100" value="0"></label>
+        <label>Sync mode<select><option selected>Free running</option><option>Envelope reset</option><option>Hard sync</option></select></label>
+      </fieldset>
+
+      <fieldset class="module mixer">
+        <legend>Mixer And Drive</legend>
+        <label>OSC 1 level<input data-unit="%" type="range" min="0" max="100" value="82"></label>
+        <label>OSC 2 level<input data-unit="%" type="range" min="0" max="100" value="70"></label>
+        <label>OSC 3 return<input data-unit="%" type="range" min="0" max="100" value="0"></label>
+        <label>Noise<input data-unit="%" type="range" min="0" max="100" value="0"></label>
+        <label>Drive<input data-unit="%" type="range" min="0" max="100" value="12"></label>
+      </fieldset>
+
+      <fieldset class="module filter wide">
+        <legend>Ladder Filter</legend>
+        <label>Cutoff<input data-unit="Hz" type="range" min="20" max="12000" value="1800"></label>
+        <label>Emphasis<input data-unit="%" type="range" min="0" max="100" value="18"></label>
+        <label>Contour<input data-unit="%" type="range" min="0" max="100" value="54"></label>
+        <label>Keyboard tracking<select><option>Off</option><option selected>Half</option><option>Full</option></select></label>
+        <label>Filter CV attenuator<input data-unit="%" type="range" min="-100" max="100" value="0"></label>
+      </fieldset>
+
+      <fieldset class="module envelope">
+        <legend>Filter Contour</legend>
+        <label>Attack<input data-unit="ms" type="range" min="0" max="5000" value="12"></label>
+        <label>Decay<input data-unit="ms" type="range" min="0" max="5000" value="430"></label>
+        <label>Sustain<input data-unit="%" type="range" min="0" max="100" value="42"></label>
+        <label>Release<input data-unit="ms" type="range" min="0" max="5000" value="320"></label>
+      </fieldset>
+
+      <fieldset class="module envelope">
+        <legend>Amplifier Contour</legend>
+        <label>Attack<input data-unit="ms" type="range" min="0" max="5000" value="8"></label>
+        <label>Decay<input data-unit="ms" type="range" min="0" max="5000" value="350"></label>
+        <label>Sustain<input data-unit="%" type="range" min="0" max="100" value="68"></label>
+        <label>Release<input data-unit="ms" type="range" min="0" max="5000" value="280"></label>
+      </fieldset>
+
+      <fieldset class="module modulation wide">
+        <legend>Modulation</legend>
+        <label>Source<select><option>Internal LFO</option><option selected>External LFO / CV In 2</option><option>Filter contour</option></select></label>
+        <label>LFO rate<input data-unit="Hz" type="range" min="0" max="30" step="0.1" value="4.2"></label>
+        <label>Depth<input data-unit="%" type="range" min="0" max="100" value="0"></label>
+        <label>Pitch / filter blend<input data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Glide<input data-unit="ms" type="range" min="0" max="3000" value="0"></label>
+      </fieldset>
+
+      <fieldset class="module io wide">
+        <legend>Patch Points</legend>
+        <label>Audio In 1<select><option selected>Pitch CV</option><option>Audio-rate FM</option></select></label>
+        <label>Audio In 2<select><option selected>External OSC 3 return</option><option>External audio</option></select></label>
+        <label>CV Out 1<select><option selected>OSC 3 pitch</option><option>Filter cutoff</option><option>Envelope</option></select></label>
+        <label>CV Out 2<select><option selected>Amplitude contour</option><option>Filter contour</option><option>LFO</option></select></label>
+      </fieldset>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
