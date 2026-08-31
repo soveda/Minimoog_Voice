@@ -95,3 +95,20 @@ intent, not behaviour already promised by the current firmware.
 - Migrate the retained C1ZZL3 WebMIDI/SysEx identifiers to a Minimoog Voice
   protocol, while maintaining a documented compatibility decision for existing
   host setups.
+
+## Factory Voice Bank
+
+- Ship a dependable `Init Voice` as the selected first preset: a single
+  medium-level saw, neutral tuning, modest cutoff, no modulation, and a
+  practical amp/filter contour. It is the known baseline for calibration and
+  patch building.
+- Build original, clearly descriptive factory voices informed by the five
+  classic Minimoog sound-design examples in the referenced Reverb article:
+  `Funk Glide Bass`, `Three Saw Bass`, `West Coast Whistle`, `Glide Mod Arp`,
+  and `Slow Brass Lead`.
+- Match the useful sound-design characteristics rather than claim exact artist
+  reproductions: oscillator ranges and detune, glide, mixer weight, contour
+  shape, filter emphasis, keyboard tracking, and LFO/modulation assignment.
+- Finalise and level-match the factory bank only after the LUT oscillator,
+  proper contour, keyboard tracking, and external oscillator/LFO features are
+  available on hardware.
