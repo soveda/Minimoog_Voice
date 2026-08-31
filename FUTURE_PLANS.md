@@ -5,10 +5,16 @@ intent, not behaviour already promised by the current firmware.
 
 ## Waveforms And Web UI
 
+- Replace the first-pass arithmetic oscillator shapes with a band-limited LUT
+  oscillator bank. The initial set is triangle, triangle-to-saw, saw, square,
+  wide pulse, and narrow pulse.
+- Tune the tables and their level matching on the Workshop Computer before
+  exposing waveform selection in the Web UI; the current simple shapes remain
+  audibly harsh at higher pitches.
 - Turn the existing visual parameter map into a Minimoog Voice-owned WebMIDI
   control surface.
 - Expose oscillator 1 and oscillator 2 waveform selection separately:
-  triangle, rounded saw, rounded square, and narrow pulse.
+  triangle, triangle-to-saw, saw, square, wide pulse, and narrow pulse.
 - Use the browser layout to decide grouping before committing those choices to
   the three physical knobs and switch modes.
 
