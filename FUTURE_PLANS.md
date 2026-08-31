@@ -83,10 +83,11 @@ intent, not behaviour already promised by the current firmware.
 - Build a C1ZZL3-style named preset workflow in the Web UI: a browser-side
   preset list, editable preset name, card-slot selector, recall, save sound
   preset, rename, duplicate/new, and overwrite/delete confirmation.
-- Provide eight named custom card slots. A card save must persist the slot
-  name and complete Minimoog Voice state together: oscillator waveforms and
-  tuning, mixer levels and drive, filter, contours, modulation, keyboard
-  tracking, output roles, and other audible routing choices.
+- Provide eight fixed factory presets and eight named custom card slots. A
+  card save must persist the custom-slot name and complete Minimoog Voice
+  state together: oscillator waveforms and tuning, mixer levels and drive,
+  filter, contours, modulation, keyboard tracking, output roles, and other
+  audible routing choices.
 - Clearly distinguish browser-only drafts, RAM recalls, and presets persisted
   to card flash. Use the same name encoding and length limit in browser and
   firmware so recalled names are reliable.
@@ -106,6 +107,10 @@ intent, not behaviour already promised by the current firmware.
   classic Minimoog sound-design examples in the referenced Reverb article:
   `Funk Glide Bass`, `Three Saw Bass`, `West Coast Whistle`, `Glide Mod Arp`,
   and `Slow Brass Lead`.
+- Complete the eight factory voices with `Sub Pulse Bass`, a weighty
+  wide/narrow-rectangle bass, and `Resonant Pulse Lead`, a brighter pulse-led
+  solo voice with filter emphasis. These ensure the factory bank exercises the
+  full intended waveform set.
 - Match the useful sound-design characteristics rather than claim exact artist
   reproductions: oscillator ranges and detune, glide, mixer weight, contour
   shape, filter emphasis, keyboard tracking, and LFO/modulation assignment.
