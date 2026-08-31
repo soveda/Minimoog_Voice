@@ -10,8 +10,10 @@ pitch/CV loop and external-LFO modulation.
 - Switch middle: cutoff, oscillator mixer, contour.
 - Switch up: oscillator 1 range, oscillator 2 interval, oscillator 2 fine tune.
 - Switch down: external oscillator pitch offset, external LFO depth, pitch/filter destination blend.
+- Either pulse input or a USB MIDI note drives the first-pass VCA/gate.
 - Holding down for four seconds flashes LED 5 as a warning; at five seconds the
-  Main knob selects an envelope preset.
+  Main knob previews one of eight future sound-preset slots without changing
+  the current voice.
 - `CV Out 1` follows the current voice pitch for an external oscillator.
 - `Audio In 2` is the external oscillator return; `Audio Out 1` is the filtered
   voice and `Audio Out 2` is the pre-filter mix.

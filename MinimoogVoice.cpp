@@ -194,9 +194,17 @@ public:
             int32_t pitchLfo = (lfo * (4095 - lfoDestinationControl)) >> 12;
             int32_t pitchUnits = currentPitchUnits(pitchControl, in1) + pitchLfo;
             int32_t freq = smoothPitch(pitchFrequency(pitchUnits));
+            bool pulse1GateHigh = PulseIn1();
+            bool pulse2GateHigh = PulseIn2();
+            bool gateHigh = pulse1GateHigh || pulse2GateHigh || midiNoteActive;
+            int32_t gateLevel = updateGateAmplitude(gateHigh);
+
+            if (gateHigh && !gateWasHigh)
+                syncOscillators();
+            gateWasHigh = gateHigh;
+
             int32_t cutoffLfo = (lfo * lfoDestinationControl) >> 12;
-            int32_t contour = envelopeActive ?
-                ((ampEnvelopeLevel * contourControl) >> 12) : 0;
+            int32_t contour = (gateLevel * contourControl) >> 12;
             int32_t cutoff = clamp12(
                 filterCutoffControl + (cv1 << 1) + cutoffLfo + contour);
 
@@ -210,30 +218,12 @@ public:
 
             clearTuringState();
 
-            bool pulse2GateHigh = PulseIn2();
-            bool pulse2Trigger = pulse2GateHigh && !pulse2GateWasHigh;
-            pulse2GateWasHigh = pulse2GateHigh;
-
-            if (pulse2Trigger)
-            {
-                if (envelopePreset != (uint8_t)EnvelopePreset::Off)
-                {
-                    if (!envelopeActive)
-                        syncOscillators();
-                    triggerEnvelope(true, true);
-                }
-            }
-            else if (pulse2EnvelopeHolding && !pulse2GateHigh)
-            {
-                requestEnvelopeRelease();
-            }
-
             outputSynthVoice(
                 freq, pd1, pd2, wave1, wave2, ring, noiseAmt,
                 AudioIn2(), cutoff, oscillatorMixControl);
 
             outputExternalOscillatorPitch(pitchUnits);
-            CVOut2((envelopeAmpScale(ampEnvelopeLevel) * 2047) >> 12);
+            CVOut2((gateLevel * 2047) >> 12);
             PulseOut1(false);
             PulseOut2(false);
 
@@ -377,6 +367,7 @@ private:
     static constexpr uint32_t SaveConfirmSamples = 48000u;
     static constexpr uint32_t PresetWarningSamples = 192000u; // Four seconds.
     static constexpr uint32_t PresetSelectHoldSamples = 240000u; // Five seconds.
+    static constexpr uint8_t PresetSlotCount = 8u;
 
     struct SavedPerformanceState
     {
@@ -613,8 +604,8 @@ private:
         int32_t sharedScale = pdCompensationScale(pd1 > pd2 ? pd1 : pd2);
         sharedScale = (sharedScale * updateSyncFade()) >> 12;
         sharedScale = (sharedScale * updateLoopFade()) >> 12;
-        int32_t ampScale1 = (envelopeAmpScale(ampEnvelopeLevel) * sharedScale) >> 12;
-        int32_t ampScale2 = (envelopeAmpScale(amp2EnvelopeLevel) * sharedScale) >> 12;
+        int32_t ampScale1 = (gateAmplitude * sharedScale) >> 12;
+        int32_t ampScale2 = ampScale1;
         osc1 = (osc1 * ampScale1) >> 12;
         osc2 = (osc2 * ampScale2) >> 12;
 
@@ -655,6 +646,21 @@ private:
         ladderStage4 += (coefficient * (ladderStage3 - ladderStage4)) >> 12;
 
         return clip(ladderStage4);
+    }
+
+    int32_t updateGateAmplitude(bool gateHigh)
+    {
+        const int32_t target = gateHigh ? 4095 : 0;
+        const int32_t maximumStep = gateHigh ? 256 : 96;
+        int32_t delta = target - gateAmplitude;
+
+        if (delta > maximumStep)
+            delta = maximumStep;
+        else if (delta < -maximumStep)
+            delta = -maximumStep;
+
+        gateAmplitude += delta;
+        return gateAmplitude;
     }
 
     struct OutputFilterState
@@ -2142,11 +2148,14 @@ private:
     void updatePresetSelection(int32_t main)
     {
         uint8_t selected =
-            (uint8_t)(((uint32_t)clamp12(main) * EnvelopePresetCount) >> 12);
-        if (selected >= EnvelopePresetCount)
-            selected = EnvelopePresetCount - 1u;
+            (uint8_t)(((uint32_t)clamp12(main) * PresetSlotCount) >> 12);
+        if (selected >= PresetSlotCount)
+            selected = PresetSlotCount - 1u;
 
-        envelopePreset = selected;
+        // The first pass has no Minimoog sound presets to load yet. Keep the
+        // long-hold slot selector visible and harmless until those settings
+        // have real stored data behind them.
+        presetPreviewSlot = selected;
     }
 
     void outputExternalOscillatorPitch(int32_t pitchUnits)
@@ -2166,7 +2175,7 @@ private:
     {
         if (presetSelectMode)
         {
-            showEnvelopePresetLeds(envelopePreset);
+            showPresetPreviewLeds(presetPreviewSlot);
             return;
         }
 
@@ -2201,6 +2210,16 @@ private:
         bool warning = downHoldSamples >= PresetWarningSamples;
         bool flash = ((downHoldSamples / 6000u) & 1u) != 0u;
         LedBrightness(5, warning && flash ? 4095 : 2048);
+    }
+
+    void showPresetPreviewLeds(uint8_t slot)
+    {
+        LedBrightness(0, slot & 1u ? 4095 : 0);
+        LedBrightness(1, slot & 2u ? 4095 : 0);
+        LedBrightness(2, slot & 4u ? 4095 : 0);
+        LedBrightness(3, 0);
+        LedBrightness(4, 0);
+        LedBrightness(5, 4095);
     }
 
     void updateSynthLEDs(Switch mode, int32_t pd1, int32_t wave1, int32_t pd2, int32_t wave2)
@@ -3448,6 +3467,8 @@ private:
     int32_t ladderStage2 = 0;
     int32_t ladderStage3 = 0;
     int32_t ladderStage4 = 0;
+    int32_t gateAmplitude = 0;
+    bool gateWasHigh = false;
 
     uint32_t noise = 1;
     uint32_t noiseHoldCounter = 0;
@@ -3511,6 +3532,7 @@ private:
     int32_t lfoDestinationControl = 2048;
     uint32_t downHoldSamples = 0;
     bool presetSelectMode = false;
+    uint8_t presetPreviewSlot = 0;
     int32_t synthMainEntry = 2048;
     int32_t synthXEntry = 0;
     int32_t synthYEntry = 0;
