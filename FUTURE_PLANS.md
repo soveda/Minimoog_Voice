@@ -37,6 +37,12 @@ intent, not behaviour already promised by the current firmware.
   oscillator return, and noise so all three sources can remain audible in any
   desired proportion beyond the physical X scan.
 - Refine the mixer drive and headroom by ear with the Workshop Computer.
+- Implement external oscillator sync on `Pulse Out 1`, patched to the external
+  oscillator's reset or hard-sync input, with oscillator 1 as the master.
+  Free running emits no reset pulses; envelope reset emits one on each gate
+  onset; hard sync emits a short pulse on each oscillator 1 phase wrap.
+- Confirm the external oscillator's sync polarity, acceptable trigger width,
+  and highest reliable hard-sync frequency on Workshop Computer hardware.
 
 ## Contours And MIDI
 
