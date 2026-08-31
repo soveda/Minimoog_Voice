@@ -35,13 +35,10 @@ intent, not behaviour already promised by the current firmware.
   oscillator: OSC 1, OSC 2, and external OSC 3 respectively.
 - Use LED 1 for oscillator 2 and oscillator 3 pitch deviation from centre:
   dark at unison, brighter as the offset moves clockwise or anticlockwise.
-- Encode the selected internal oscillator waveform with LEDs 2 and 4:
-  both dark for triangle; LED 2 steady for triangle-to-saw; LED 4 steady for
-  saw; LED 2 flashing for square; LED 4 flashing for wide rectangle; and LEDs
-  2 and 4 flashing together for narrow rectangle.
-- Resolve the LED 2 / LED 4 overlap between oscillator selection and waveform
-  display before implementation: define whether selection is momentary, takes
-  display priority, or uses a different persistent indication.
+- Encode the selected internal oscillator waveform with LEDs 3 and 5:
+  both dark for triangle; LED 3 steady for triangle-to-saw; LED 5 steady for
+  saw; LED 3 flashing for square; LED 5 flashing for wide rectangle; and LEDs
+  3 and 5 flashing together for narrow rectangle.
 
 ## Mixer And External Oscillator
 
