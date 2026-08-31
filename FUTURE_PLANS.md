@@ -42,6 +42,11 @@ intent, not behaviour already promised by the current firmware.
 
 - Replace the first-pass gate-following filter lift with separate, adjustable
   amplifier and filter ADSR contours.
+- Add an adjustable filter keyboard-tracking amount, derived from the shared
+  pitch-unit calculation. It must track calibrated `Audio In 1` pitch CV when
+  CV controls pitch, and the active MIDI note when MIDI has pitch priority.
+- Keep `CV In 1` as independent positive filter modulation rather than using
+  it as the keyboard-tracking source.
 - Define pulse/CV and MIDI note priority, retrigger behaviour, velocity,
   pitch bend, and the relationship between MIDI pitch and the physical range
   controls.
