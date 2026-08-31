@@ -13,9 +13,10 @@ intent, not behaviour already promised by the current firmware.
   and raw square plus intentionally complex PD shapes; it has no suitable
   triangle, triangle-to-saw, wide-pulse, or narrow-pulse source and is not
   band-limited. Do not reuse it for the Minimoog oscillator bank.
-- Generate a dedicated Minimoog multiband wavetable set, selecting a harmonic
-  band from oscillator frequency. A single full-band table would still alias
-  at high pitches, even if its waveform has smoother sampled corners.
+- First pass implemented: a dedicated 512-sample, nine-band Minimoog
+  wavetable set selects a harmonic band from oscillator frequency. Tune the
+  band boundaries and consider adjacent-band crossfades if hardware testing
+  reveals audible timbral steps.
 - Tune the tables and their level matching on the Workshop Computer before
   exposing waveform selection in the Web UI; the current simple shapes remain
   audibly harsh at higher pitches.

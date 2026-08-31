@@ -11,6 +11,7 @@ pico_sdk_init()
 add_executable(MINIMOOG_VOICE
     MinimoogVoice.cpp
     MinimoogVoice_LUT.cpp
+    MinimoogVoice_WaveLUT.cpp
     usb_descriptors.c
     usb_midi_host.c
     usb_midi_host_app_driver.c

@@ -46,9 +46,12 @@ pitch/CV loop and external-LFO modulation.
 The filter is currently a stable four-stage low-pass placeholder. Its detailed
 ladder saturation and envelope design remain the next hardware-led work.
 
-The first Minimoog oscillator pass uses a rounded saw for oscillator 1 and a
-rounded square for oscillator 2, followed by gentle mixer saturation. This is
-intentionally separate from the inherited C1ZZL3 phase-distortion engine.
+The oscillator pass uses a generated, zero-DC, multiband wavetable bank:
+triangle, triangle-to-saw, saw, square, wide rectangle, and narrow rectangle.
+Each shape has nine harmonic bands and is selected from pitch, reducing aliasing
+at higher notes. OSC 1 starts as saw and OSC 2 starts as square; the panel and
+Web UI waveform controls are still to be connected. This remains separate from
+the inherited C1ZZL3 phase-distortion engine.
 
 ## Web Control Surface
 

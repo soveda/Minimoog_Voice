@@ -1,5 +1,6 @@
 #include "ComputerCard.h"
 #include "MinimoogVoice_LUT.h"
+#include "MinimoogVoice_WaveLUT.h"
 #include "hardware/clocks.h"
 #include "hardware/sync.h"
 #include "pico/multicore.h"
@@ -236,8 +237,10 @@ private:
     enum class MoogWave : uint8_t
     {
         Triangle,
+        TriangleSaw,
         Saw,
         Square,
+        WideRectangle,
         NarrowPulse
     };
 
@@ -646,33 +649,41 @@ private:
 
     MoogWave controlToMoogWave(int32_t control)
     {
-        uint32_t index = ((uint32_t)clamp12(control) * 4u) >> 12;
-        if (index > 3u)
-            index = 3u;
+        uint32_t index =
+            ((uint32_t)clamp12(control) * MINIMOOG_WAVE_COUNT) >> 12;
+        if (index >= MINIMOOG_WAVE_COUNT)
+            index = MINIMOOG_WAVE_COUNT - 1u;
         return (MoogWave)index;
     }
 
     int32_t oscMoog(uint32_t& phase, int32_t frequency, MoogWave wave)
     {
         phase += (uint32_t)frequency;
-        uint32_t position = (phase >> 20) & 4095u;
-        int32_t sine = getSine(phase);
-        int32_t saw = (int32_t)position - 2048;
-        int32_t triangle = position < 2048u ?
-            -2048 + ((int32_t)position << 1) :
-            6142 - ((int32_t)position << 1);
-        int32_t square = position < 2048u ? 1792 : -1792;
-        int32_t narrowPulse = position < 1024u ? 1792 : -1792;
+        uint32_t band = waveBandForFrequency(frequency);
+        uint32_t index = (phase >> 23) & (MINIMOOG_WAVE_TABLE_SIZE - 1u);
+        uint32_t fraction = (phase >> 14) & (MINIMOOG_WAVE_TABLE_SIZE - 1u);
+        uint32_t nextIndex = (index + 1u) & (MINIMOOG_WAVE_TABLE_SIZE - 1u);
+        uint32_t waveIndex = (uint32_t)wave;
+        int32_t a = minimoogWaveLUT[waveIndex][band][index];
+        int32_t b = minimoogWaveLUT[waveIndex][band][nextIndex];
 
-        // A little sine rounding softens the hard digital corners before the
-        // mixer and ladder stage, while keeping the classic ramp/pulse weight.
-        switch (wave)
+        return a + (((b - a) * (int32_t)fraction) >> 9);
+    }
+
+    uint32_t waveBandForFrequency(int32_t frequency)
+    {
+        if (frequency <= 0)
+            return 0;
+
+        uint32_t allowedHarmonics =
+            0x80000000u / (uint32_t)frequency;
+        for (uint32_t band = 0; band < MINIMOOG_WAVE_BAND_COUNT; ++band)
         {
-            case MoogWave::Saw: return mix(saw, sine, 384);
-            case MoogWave::Square: return mix(square, sine, 256);
-            case MoogWave::NarrowPulse: return mix(narrowPulse, sine, 192);
-            default: return triangle;
+            if (minimoogWaveMaxHarmonics[band] <= allowedHarmonics)
+                return band;
         }
+
+        return MINIMOOG_WAVE_BAND_COUNT - 1u;
     }
 
     int32_t warmMixerSaturation(int32_t input)
@@ -3642,7 +3653,7 @@ private:
     int32_t pitchControl = 2048;
     int32_t pdControl = 0;
     int32_t pd2Control = 0;
-    int32_t waveControl = 1365;  // Saw.
+    int32_t waveControl = 1638;  // Saw.
     int32_t wave2Control = 2730; // Square.
     int32_t recipeBankControl = 0;
     int32_t smoothedFreq = 0;
