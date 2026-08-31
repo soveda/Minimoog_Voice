@@ -675,11 +675,10 @@ private:
         if (frequency <= 0)
             return 0;
 
-        uint32_t allowedHarmonics =
-            0x80000000u / (uint32_t)frequency;
+        uint32_t phaseIncrement = (uint32_t)frequency;
         for (uint32_t band = 0; band < MINIMOOG_WAVE_BAND_COUNT; ++band)
         {
-            if (minimoogWaveMaxHarmonics[band] <= allowedHarmonics)
+            if (phaseIncrement <= minimoogWaveMaxFrequency[band])
                 return band;
         }
 

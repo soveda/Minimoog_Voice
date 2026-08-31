@@ -27,6 +27,21 @@ intent, not behaviour already promised by the current firmware.
 - Use the browser layout to decide grouping before committing those choices to
   the three physical knobs and switch modes.
 
+## Audio Performance
+
+- Keep the audio ISR free of general integer division. The wavetable harmonic
+  band selection now uses generated phase-increment thresholds; audit remaining
+  pitch and transient-envelope divisions before adding more voice features.
+- Replace direct shared MIDI-state writes from core 1 with a bounded lock-free
+  event ring buffer consumed on the audio core. This must define overflow and
+  note-off handling rather than silently losing dense MIDI events.
+- Assess moving slow panel/UI state processing off the audio core after the
+  event queue exists, while leaving actual audio-rate jack sampling in the
+  Workshop Computer's audio path.
+- Benchmark the RP2040 hardware interpolator for wavetable interpolation after
+  the division and event-queue work. It can remove interpolation arithmetic,
+  but needs an isolated comparison against the current two-oscillator load.
+
 ## Physical Oscillator Pages
 
 - Make a short press and release of the switch cycle through oscillator 1,

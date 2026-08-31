@@ -8,4 +8,4 @@ constexpr uint32_t MINIMOOG_WAVE_COUNT = 6u;
 
 extern const int16_t minimoogWaveLUT[MINIMOOG_WAVE_COUNT]
     [MINIMOOG_WAVE_BAND_COUNT][MINIMOOG_WAVE_TABLE_SIZE];
-extern const uint16_t minimoogWaveMaxHarmonics[MINIMOOG_WAVE_BAND_COUNT];
+extern const uint32_t minimoogWaveMaxFrequency[MINIMOOG_WAVE_BAND_COUNT];
