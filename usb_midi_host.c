@@ -35,6 +35,11 @@
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF
 //--------------------------------------------------------------------+
+// TinyUSB 0.20 renamed the full-speed bulk endpoint limit used by this
+// rppicomidi host driver. Workshop Computer USB MIDI is full-speed only.
+#ifndef USBH_EPSIZE_BULK_MAX
+  #define USBH_EPSIZE_BULK_MAX TUSB_EPSIZE_BULK_FS
+#endif
 #ifndef CFG_TUH_MAX_CABLES
   #define CFG_TUH_MAX_CABLES 16
 #endif
