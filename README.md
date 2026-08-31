@@ -5,12 +5,11 @@ Workshop Computer. It begins from the stable C1ZZL3 Gnarly architecture, while
 moving toward a two-internal-oscillator voice with an external oscillator 3
 pitch/CV loop and external-LFO modulation.
 
-## First Firmware Pass
+## Current Firmware Behaviour
 
 - Switch middle: cutoff, oscillator mixer, contour. The X control scans from
-  oscillator 1 at the left, through all three oscillators together at noon,
-  to the external oscillator 3 return at the right. In this mode LEDs 0, 2,
-  and 4 show the OSC 1, OSC 2, and external OSC 3 mix levels respectively.
+  oscillator 1 at the left, through all three oscillators together at noon, to
+  the external oscillator 3 return at the right.
 - Switch up: oscillator 1 range, oscillator 2 interval, oscillator 2 fine tune.
 - Switch down: external oscillator pitch offset, external LFO depth, pitch/filter destination blend.
 - Changing switch position uses soft pickup for all three knobs: a page keeps
@@ -21,8 +20,28 @@ pitch/CV loop and external-LFO modulation.
   Main knob previews one of eight future sound-preset slots without changing
   the current voice.
 - `CV Out 1` follows the current voice pitch for an external oscillator.
-- `Audio In 2` is the external oscillator return; `Audio Out 1` is the filtered
-  voice and `Audio Out 2` is the pre-filter mix.
+- `Audio Out 1` is the filtered voice and `Audio Out 2` is the pre-filter mix.
+
+## Inputs
+
+- `Audio In 1`: pitch CV for the internal oscillators. An active USB MIDI note
+  takes priority over this input for pitch.
+- `Audio In 2`: external oscillator return, used as OSC 3 in the mixer.
+- `CV In 1`: positive filter-cutoff modulation.
+- `CV In 2`: external LFO input. Its depth and pitch/filter destination are
+  set on the Down page.
+- `Pulse In 1` and `Pulse In 2`: either acts as a gate for the first-pass VCA.
+- USB MIDI: note on/off supplies pitch and gate; pitch bend is active.
+
+## LED Feedback
+
+| Switch state | LEDs |
+| --- | --- |
+| Middle | 0: OSC 1 mix level; 1: cutoff; 2: OSC 2 mix level; 3: contour; 4: external OSC 3 mix level; 5: half brightness. At X centre, 0, 2, and 4 are all bright. |
+| Up | 0: OSC 1 pitch/range; 1: OSC 2 interval; 2: OSC 2 fine-tune distance from centre; 3-5: off. |
+| Down | 0: external OSC 3 pitch offset; 1: external-LFO depth; 2: LFO pitch/filter balance; 3-4: off; 5: half brightness. |
+| Down held 4 seconds | LED 5 flashes as a warning. |
+| Down held 5 seconds | LEDs 0-2 show a future preset slot in binary; LED 5 is fully lit. This is currently a non-destructive preview and changes no sound. |
 
 The filter is currently a stable four-stage low-pass placeholder. Its detailed
 ladder saturation and envelope design remain the next hardware-led work.
