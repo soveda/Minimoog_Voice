@@ -37,12 +37,18 @@ intent, not behaviour already promised by the current firmware.
   oscillator return, and noise so all three sources can remain audible in any
   desired proportion beyond the physical X scan.
 - Refine the mixer drive and headroom by ear with the Workshop Computer.
-- Implement external oscillator sync on `Pulse Out 1`, patched to the external
-  oscillator's reset or hard-sync input, with oscillator 1 as the master.
-  Free running emits no reset pulses; envelope reset emits one on each gate
-  onset; hard sync emits a short pulse on each oscillator 1 phase wrap.
-- Confirm the external oscillator's sync polarity, acceptable trigger width,
-  and highest reliable hard-sync frequency on Workshop Computer hardware.
+- Make `Pulse Out 1` an explicit selectable output role; the card cannot know
+  whether it is patched to a Workshop System voice or to an external module.
+- External-module sync role: patch `Pulse Out 1` to an oscillator reset or
+  hard-sync input, with oscillator 1 as master. Free running emits no reset
+  pulses; envelope reset emits one on each gate onset; hard sync emits a short
+  pulse on each oscillator 1 phase wrap.
+- Workshop System role: provide a musically useful alternate pulse output,
+  starting with a short note/gate-on trigger suitable for driving another WSS
+  voice or event input. Evaluate additional options such as gate mirror and
+  end-of-contour trigger during hardware testing.
+- Confirm the external module's sync polarity, acceptable trigger width, and
+  highest reliable hard-sync frequency on Workshop Computer hardware.
 
 ## Contours And MIDI
 
