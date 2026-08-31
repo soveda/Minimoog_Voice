@@ -7,7 +7,10 @@ pitch/CV loop and external-LFO modulation.
 
 ## First Firmware Pass
 
-- Switch middle: cutoff, oscillator mixer, contour.
+- Switch middle: cutoff, oscillator mixer, contour. The X control scans from
+  oscillator 1 at the left, through all three oscillators together at noon,
+  to the external oscillator 3 return at the right. In this mode LEDs 0, 2,
+  and 4 show the OSC 1, OSC 2, and external OSC 3 mix levels respectively.
 - Switch up: oscillator 1 range, oscillator 2 interval, oscillator 2 fine tune.
 - Switch down: external oscillator pitch offset, external LFO depth, pitch/filter destination blend.
 - Either pulse input or a USB MIDI note drives the first-pass VCA/gate.
@@ -19,8 +22,7 @@ pitch/CV loop and external-LFO modulation.
   voice and `Audio Out 2` is the pre-filter mix.
 
 The filter is currently a stable four-stage low-pass placeholder. Its detailed
-ladder saturation, envelope design, and final mixer behaviour remain the next
-hardware-led work.
+ladder saturation and envelope design remain the next hardware-led work.
 
 The first Minimoog oscillator pass uses a rounded saw for oscillator 1 and a
 rounded square for oscillator 2, followed by gentle mixer saturation. This is
@@ -32,6 +34,14 @@ Open `web/index.html` in a browser. This first screen is deliberately a visual
 parameter map, not yet a WebMIDI transport. It includes every planned voice,
 mixer, filter, contour, modulation, and patch-point control so their grouping
 can be decided in context.
+
+## Next Stage
+
+The work staged in [FUTURE_PLANS.md](FUTURE_PLANS.md) covers waveform choices
+in the Web UI, an individual three-oscillator mixer, amp and filter envelopes,
+MIDI integration, and sound presets. The current long-hold LED state is only a
+non-destructive placeholder until those presets save and recall complete voice
+states.
 
 ## Build
 

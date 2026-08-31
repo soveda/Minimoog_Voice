@@ -604,11 +604,41 @@ private:
         int32_t externalOscillator,
         int32_t position)
     {
-        position = clamp12(position);
-        if (position < 2048)
-            return mix(osc1, osc2, position << 1);
+        int32_t osc1Level;
+        int32_t osc2Level;
+        int32_t externalLevel;
+        oscillatorMixerLevels(position, osc1Level, osc2Level, externalLevel);
 
-        return mix(osc2, externalOscillator, (position - 2048) << 1);
+        // The physical X control sweeps OSC 1 through a full three-source
+        // blend at noon, then out to the external OSC 3 return.
+        int32_t summed =
+            osc1 * osc1Level +
+            osc2 * osc2Level +
+            externalOscillator * externalLevel;
+        return summed >> 12;
+    }
+
+    void oscillatorMixerLevels(
+        int32_t position,
+        int32_t& osc1Level,
+        int32_t& osc2Level,
+        int32_t& externalLevel)
+    {
+        position = clamp12(position);
+        int32_t fromCentre = position - 2048;
+        int32_t distanceFromCentre =
+            fromCentre < 0 ? -fromCentre : fromCentre;
+
+        osc1Level = fromCentre > 0 ? 4095 - (fromCentre << 1) : 4095;
+        externalLevel = fromCentre < 0 ? position << 1 : 4095;
+        osc2Level = 4095 - (distanceFromCentre << 1);
+
+        if (osc1Level < 0)
+            osc1Level = 0;
+        if (osc2Level < 0)
+            osc2Level = 0;
+        if (externalLevel < 0)
+            externalLevel = 0;
     }
 
     MoogWave controlToMoogWave(int32_t control)
@@ -2204,11 +2234,17 @@ private:
 
         if (mode == Switch::Middle)
         {
-            LedBrightness(0, filterCutoffControl);
-            LedBrightness(1, oscillatorMixControl);
-            LedBrightness(2, contourControl);
-            LedBrightness(3, 0);
-            LedBrightness(4, 0);
+            int32_t osc1Level;
+            int32_t osc2Level;
+            int32_t externalLevel;
+            oscillatorMixerLevels(
+                oscillatorMixControl, osc1Level, osc2Level, externalLevel);
+
+            LedBrightness(0, osc1Level);
+            LedBrightness(1, filterCutoffControl);
+            LedBrightness(2, osc2Level);
+            LedBrightness(3, contourControl);
+            LedBrightness(4, externalLevel);
             LedBrightness(5, 2048);
             return;
         }
