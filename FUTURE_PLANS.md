@@ -8,6 +8,14 @@ intent, not behaviour already promised by the current firmware.
 - Replace the first-pass arithmetic oscillator shapes with a band-limited LUT
   oscillator bank. The initial set is triangle, triangle-to-saw, saw, square,
   wide pulse, and narrow pulse.
+- C1ZZL3 LUT assessment: retain its interpolated 1,024-sample sine table only
+  as an optional utility. Its 8 x 4,096 phase-distortion table has a raw ramp
+  and raw square plus intentionally complex PD shapes; it has no suitable
+  triangle, triangle-to-saw, wide-pulse, or narrow-pulse source and is not
+  band-limited. Do not reuse it for the Minimoog oscillator bank.
+- Generate a dedicated Minimoog multiband wavetable set, selecting a harmonic
+  band from oscillator frequency. A single full-band table would still alias
+  at high pitches, even if its waveform has smoother sampled corners.
 - Tune the tables and their level matching on the Workshop Computer before
   exposing waveform selection in the Web UI; the current simple shapes remain
   audibly harsh at higher pitches.
