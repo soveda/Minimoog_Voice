@@ -80,6 +80,16 @@ intent, not behaviour already promised by the current firmware.
 
 - Replace the long-hold placeholder LEDs with actual preset selection only
   after a preset stores and restores every audible voice parameter.
+- Build a C1ZZL3-style named preset workflow in the Web UI: a browser-side
+  preset list, editable preset name, card-slot selector, recall, save sound
+  preset, rename, duplicate/new, and overwrite/delete confirmation.
+- Provide eight named custom card slots. A card save must persist the slot
+  name and complete Minimoog Voice state together: oscillator waveforms and
+  tuning, mixer levels and drive, filter, contours, modulation, keyboard
+  tracking, output roles, and other audible routing choices.
+- Clearly distinguish browser-only drafts, RAM recalls, and presets persisted
+  to card flash. Use the same name encoding and length limit in browser and
+  firmware so recalled names are reliable.
 - Retain the four-second warning flash and five-second entry threshold before
   any destructive preset action.
 - Migrate the retained C1ZZL3 WebMIDI/SysEx identifiers to a Minimoog Voice
