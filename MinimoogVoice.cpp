@@ -148,24 +148,17 @@ public:
         if (!modePickupInitialized)
         {
             modePickupInitialized = true;
-            if (mode == Switch::Down)
-            {
-                resetAltPickup(main, x, y);
-                resetSaveGesture();
-                previousMode = mode;
-                lastMode = mode;
-            }
-            else
-            {
-                resetSavedSettingPickup(main, x, y);
-            }
+            resetMinimoogPagePickup(mode, main, x, y);
+            resetSaveGesture();
+            previousMode = mode;
+            lastMode = mode;
         }
 
         if (mode != Switch::Down)
             downEditUnlocked = true;
 
         if (mode != previousMode)
-            resetModePickup(mode, previousMode, main, x, y);
+            resetMinimoogPagePickup(mode, main, x, y);
         lastMode = mode;
 
         // Middle is the playable voice, up is oscillator setup, and the held
@@ -263,6 +256,16 @@ private:
         EnvelopeStage pd2[8];
         EnvelopeStage amp2[8];
         uint8_t sustain[6];
+    };
+
+    struct PanelPagePickup
+    {
+        int32_t mainEntry;
+        int32_t xEntry;
+        int32_t yEntry;
+        bool mainPickedUp;
+        bool xPickedUp;
+        bool yPickedUp;
     };
 
     struct SavedEnvelopeProgram
@@ -2158,25 +2161,90 @@ private:
 
     void updateVoiceControls(int32_t main, int32_t x, int32_t y)
     {
-        filterCutoffControl = main;
-        oscillatorMixControl = x;
-        contourControl = y;
+        if (pickupPageControl(
+                main, voicePagePickup.mainEntry, filterCutoffControl,
+                voicePagePickup.mainPickedUp))
+            filterCutoffControl = main;
+        if (pickupPageControl(
+                x, voicePagePickup.xEntry, oscillatorMixControl,
+                voicePagePickup.xPickedUp))
+            oscillatorMixControl = x;
+        if (pickupPageControl(
+                y, voicePagePickup.yEntry, contourControl,
+                voicePagePickup.yPickedUp))
+            contourControl = y;
     }
 
     void updateOscillatorControls(int32_t main, int32_t x, int32_t y)
     {
-        // The original C1ZZL3 pitch map and detune response remain intact
-        // beneath the new Minimoog-style labels for this first hardware pass.
-        pitchControl = main;
-        osc2IntervalControl = x;
-        setDetuneFromControl(y);
+        if (pickupPageControl(
+                main, oscillatorPagePickup.mainEntry, pitchControl,
+                oscillatorPagePickup.mainPickedUp))
+            pitchControl = main;
+        if (pickupPageControl(
+                x, oscillatorPagePickup.xEntry, osc2IntervalControl,
+                oscillatorPagePickup.xPickedUp))
+            osc2IntervalControl = x;
+        if (pickupPageControl(
+                y, oscillatorPagePickup.yEntry, osc2Detune + 2048,
+                oscillatorPagePickup.yPickedUp))
+            setDetuneFromControl(y);
     }
 
     void updateModulationControls(int32_t main, int32_t x, int32_t y)
     {
-        externalOscillatorOffset = main;
-        lfoDepthControl = x;
-        lfoDestinationControl = y;
+        if (pickupPageControl(
+                main, modulationPagePickup.mainEntry, externalOscillatorOffset,
+                modulationPagePickup.mainPickedUp))
+            externalOscillatorOffset = main;
+        if (pickupPageControl(
+                x, modulationPagePickup.xEntry, lfoDepthControl,
+                modulationPagePickup.xPickedUp))
+            lfoDepthControl = x;
+        if (pickupPageControl(
+                y, modulationPagePickup.yEntry, lfoDestinationControl,
+                modulationPagePickup.yPickedUp))
+            lfoDestinationControl = y;
+    }
+
+    void resetMinimoogPagePickup(Switch mode, int32_t main, int32_t x, int32_t y)
+    {
+        if (mode == Switch::Middle)
+            resetPagePickup(voicePagePickup, main, x, y);
+        else if (mode == Switch::Up)
+            resetPagePickup(oscillatorPagePickup, main, x, y);
+        else
+            resetPagePickup(modulationPagePickup, main, x, y);
+    }
+
+    void resetPagePickup(PanelPagePickup& pickup, int32_t main, int32_t x, int32_t y)
+    {
+        pickup.mainEntry = main;
+        pickup.xEntry = x;
+        pickup.yEntry = y;
+        pickup.mainPickedUp = false;
+        pickup.xPickedUp = false;
+        pickup.yPickedUp = false;
+    }
+
+    bool pickupPageControl(int32_t knob, int32_t entry, int32_t target, bool& pickedUp)
+    {
+        if (pickedUp)
+            return true;
+
+        int32_t distance = knob - target;
+        if (distance < 0)
+            distance = -distance;
+
+        // Pick up at the stored value, including a move that crosses it
+        // between samples, so switching pages never produces a parameter jump.
+        bool crossedTarget =
+            (entry <= target && knob >= target) ||
+            (entry >= target && knob <= target);
+        if (distance <= 96 || crossedTarget)
+            pickedUp = true;
+
+        return pickedUp;
     }
 
     void updateMinimoogHoldState(Switch mode, Switch previousMode)
@@ -3589,6 +3657,9 @@ private:
     int32_t externalOscillatorOffset = 2048;
     int32_t lfoDepthControl = 0;
     int32_t lfoDestinationControl = 2048;
+    PanelPagePickup voicePagePickup = {};
+    PanelPagePickup oscillatorPagePickup = {};
+    PanelPagePickup modulationPagePickup = {};
     uint32_t downHoldSamples = 0;
     bool presetSelectMode = false;
     uint8_t presetPreviewSlot = 0;

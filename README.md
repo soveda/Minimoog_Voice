@@ -13,6 +13,9 @@ pitch/CV loop and external-LFO modulation.
   and 4 show the OSC 1, OSC 2, and external OSC 3 mix levels respectively.
 - Switch up: oscillator 1 range, oscillator 2 interval, oscillator 2 fine tune.
 - Switch down: external oscillator pitch offset, external LFO depth, pitch/filter destination blend.
+- Changing switch position uses soft pickup for all three knobs: a page keeps
+  its current settings until each physical knob reaches or crosses that
+  setting, avoiding jumps between pages.
 - Either pulse input or a USB MIDI note drives the first-pass VCA/gate.
 - Holding down for four seconds flashes LED 5 as a warning; at five seconds the
   Main knob previews one of eight future sound-preset slots without changing
