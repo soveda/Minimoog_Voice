@@ -208,18 +208,13 @@ public:
             int32_t cutoff = clamp12(
                 filterCutoffControl + (cv1 << 1) + cutoffLfo + contour);
 
-            int32_t pd1 = clamp12(pdControl);
-            int32_t pd2 = clamp12(pd2Control);
             int32_t wave1 = clamp12(waveControl);
             int32_t wave2 = clamp12(wave2Control);
-
-            int32_t ring = clamp12(osc2Ring);
-            int32_t noiseAmt = clamp12(osc2Noise);
 
             clearTuringState();
 
             outputSynthVoice(
-                freq, pd1, pd2, wave1, wave2, ring, noiseAmt,
+                freq, wave1, wave2,
                 AudioIn2(), cutoff, oscillatorMixControl);
 
             outputExternalOscillatorPitch(pitchUnits);
@@ -243,6 +238,14 @@ private:
         Strings,
         ReverseSwell,
         EvolvingDigital
+    };
+
+    enum class MoogWave : uint8_t
+    {
+        Triangle,
+        Saw,
+        Square,
+        NarrowPulse
     };
 
     struct EnvelopeStage
@@ -338,8 +341,8 @@ private:
     };
     static constexpr uint32_t StartupSelectDelaySamples = 12000u;
     static constexpr uint32_t StartupSelectWindowSamples = 24000u;
-    static constexpr uint32_t SaveMagic = 0x43315A33u; // C1Z3
-    static constexpr uint16_t SaveVersion = 4;
+    static constexpr uint32_t SaveMagic = 0x4D4D5631u; // MMV1
+    static constexpr uint16_t SaveVersion = 1;
     static constexpr int32_t OutputLowpassAlphaQ12 = 2008; // ~5.2 kHz at 48 kHz.
     static constexpr int32_t OutputHighpassAlphaQ12 = 4075; // 40 Hz at 48 kHz.
     static constexpr int32_t PdCompensationFloorQ12 = 3000; // Keep high-PD tones present but less inflated.
@@ -353,7 +356,7 @@ private:
     static constexpr uint32_t SaveFlashOffset =
         (PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE) &
         ~(FLASH_SECTOR_SIZE - 1u);
-    static constexpr uint32_t CustomEnvelopeMagic = 0x4331454Eu; // C1EN
+    static constexpr uint32_t CustomEnvelopeMagic = 0x4D4D454Eu; // MMEN
     static constexpr uint16_t LegacyCustomEnvelopeSaveVersion = 3;
     static constexpr uint16_t DualPdCustomEnvelopeSaveVersion = 4;
     static constexpr uint16_t DualAmpCustomEnvelopeSaveVersion = 5;
@@ -556,52 +559,30 @@ private:
     void outputSynthVoice()
     {
         int32_t freq = smoothPitch(pitchFrequency(pitchUnits(pitchControl, 0)));
-        int32_t pd = clamp12(pdControl);
         int32_t wave1 = clamp12(waveControl);
         int32_t wave2 = clamp12(wave2Control);
 
         outputSynthVoice(
-            freq, pd, pd2Control, wave1, wave2, osc2Ring, osc2Noise,
+            freq, wave1, wave2,
             0, filterCutoffControl, oscillatorMixControl);
     }
 
     void outputSynthVoice(
         int32_t freq,
-        int32_t pd1Base,
-        int32_t pd2Base,
         int32_t wave1,
         int32_t wave2,
-        int32_t ring,
-        int32_t noiseAmt,
         int32_t externalOscillator,
         int32_t cutoff,
         int32_t mixerPosition)
     {
-        updateEnvelope();
-        int32_t freq1 = applyPitchEnvelopeToFrequency(freq, pitchEnvelopeLevel);
-        int32_t pd1 = applyEnvelopeToPd(pd1Base, pdEnvelopeLevel);
-        int32_t pd2 = applyEnvelopeToPd(pd2Base, pd2EnvelopeLevel);
-
-        int32_t osc1 =
-            oscCZ(phase1, freq1, pd1, wave1, recipeBankControl, noiseAmt);
+        int32_t freq1 = freq;
+        int32_t osc1 = oscMoog(phase1, freq1, controlToMoogWave(wave1));
 
         int32_t freq2 =
-            applyPitchEnvelopeToFrequency(
-                applyDetune(applyOsc2BaseInterval(freq), osc2Detune),
-                pitch2EnvelopeLevel);
+            applyDetune(applyOsc2BaseInterval(freq), osc2Detune);
+        int32_t osc2 = oscMoog(phase2, freq2, controlToMoogWave(wave2));
 
-        int32_t osc2 =
-            oscCZ(phase2, freq2, pd2, wave2, recipeBankControl, noiseAmt);
-
-        int32_t osc2Raw = osc2;
-        osc2 = osc2Raw;
-
-        int32_t ringCarrier = osc2Raw;
-        int32_t ringSig = clip((osc1 * ringCarrier) >> 10);
-        int32_t ringMix = (ring * 3840) >> 12;
-        osc1 = mix(osc1, ringSig, ringMix);
-
-        int32_t sharedScale = pdCompensationScale(pd1 > pd2 ? pd1 : pd2);
+        int32_t sharedScale = 4095;
         sharedScale = (sharedScale * updateSyncFade()) >> 12;
         sharedScale = (sharedScale * updateLoopFade()) >> 12;
         int32_t ampScale1 = (gateAmplitude * sharedScale) >> 12;
@@ -610,6 +591,7 @@ private:
         osc2 = (osc2 * ampScale2) >> 12;
 
         int32_t mixed = scanOscillatorMixer(osc1, osc2, externalOscillator, mixerPosition);
+        mixed = warmMixerSaturation(mixed);
         int32_t filtered = ladderFilterSample(mixed, cutoff, filterResonanceControl);
 
         AudioOut1(filtered);
@@ -627,6 +609,47 @@ private:
             return mix(osc1, osc2, position << 1);
 
         return mix(osc2, externalOscillator, (position - 2048) << 1);
+    }
+
+    MoogWave controlToMoogWave(int32_t control)
+    {
+        uint32_t index = ((uint32_t)clamp12(control) * 4u) >> 12;
+        if (index > 3u)
+            index = 3u;
+        return (MoogWave)index;
+    }
+
+    int32_t oscMoog(uint32_t& phase, int32_t frequency, MoogWave wave)
+    {
+        phase += (uint32_t)frequency;
+        uint32_t position = (phase >> 20) & 4095u;
+        int32_t sine = getSine(phase);
+        int32_t saw = (int32_t)position - 2048;
+        int32_t triangle = position < 2048u ?
+            -2048 + ((int32_t)position << 1) :
+            6142 - ((int32_t)position << 1);
+        int32_t square = position < 2048u ? 1792 : -1792;
+        int32_t narrowPulse = position < 1024u ? 1792 : -1792;
+
+        // A little sine rounding softens the hard digital corners before the
+        // mixer and ladder stage, while keeping the classic ramp/pulse weight.
+        switch (wave)
+        {
+            case MoogWave::Saw: return mix(saw, sine, 384);
+            case MoogWave::Square: return mix(square, sine, 256);
+            case MoogWave::NarrowPulse: return mix(narrowPulse, sine, 192);
+            default: return triangle;
+        }
+    }
+
+    int32_t warmMixerSaturation(int32_t input)
+    {
+        int32_t driven = input + (input >> 1);
+        if (driven > 1400)
+            return 1400 + ((driven - 1400) >> 2);
+        if (driven < -1400)
+            return -1400 + ((driven + 1400) >> 2);
+        return driven;
     }
 
     int32_t ladderFilterSample(int32_t input, int32_t cutoff, int32_t resonance)
@@ -3515,8 +3538,8 @@ private:
     int32_t pitchControl = 2048;
     int32_t pdControl = 0;
     int32_t pd2Control = 0;
-    int32_t waveControl = 0;
-    int32_t wave2Control = 0;
+    int32_t waveControl = 1365;  // Saw.
+    int32_t wave2Control = 2730; // Square.
     int32_t recipeBankControl = 0;
     int32_t smoothedFreq = 0;
     int32_t osc2Detune = 0;

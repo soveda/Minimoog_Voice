@@ -22,6 +22,10 @@ The filter is currently a stable four-stage low-pass placeholder. Its detailed
 ladder saturation, envelope design, and final mixer behaviour remain the next
 hardware-led work.
 
+The first Minimoog oscillator pass uses a rounded saw for oscillator 1 and a
+rounded square for oscillator 2, followed by gentle mixer saturation. This is
+intentionally separate from the inherited C1ZZL3 phase-distortion engine.
+
 ## Web Control Surface
 
 Open `web/index.html` in a browser. This first screen is deliberately a visual
