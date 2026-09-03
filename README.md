@@ -10,7 +10,15 @@ pitch/CV loop and external-LFO modulation.
 - Switch middle: cutoff, oscillator mixer, contour. The X control scans from
   oscillator 1 at the left, through all three oscillators together at noon, to
   the external oscillator 3 return at the right.
-- Switch up: oscillator 1 range, oscillator 2 interval, oscillator 2 fine tune.
+- A Down press and release within half a second cycles the selected setup page:
+  OSC 1, OSC 2, then external OSC 3. The selection is shown when the switch is
+  moved Up.
+- Switch up, OSC 1 page: Main range/pitch, X level, Y waveform.
+- Switch up, OSC 2 page: Main interval/range, X level, Y waveform. Fine tune
+  remains at its current value until it moves to the Web UI.
+- Switch up, external OSC 3 page: Main `CV Out 1` pitch offset, X audio-return
+  level, Y future external output role. The role selector has no hardware
+  behaviour yet.
 - Switch down: external oscillator pitch offset, external LFO depth, pitch/filter destination blend.
 - Changing switch position uses soft pickup for all three knobs: a page keeps
   its current settings until each physical knob reaches or crosses that
@@ -38,7 +46,7 @@ pitch/CV loop and external-LFO modulation.
 | Switch state | LEDs |
 | --- | --- |
 | Middle | 0: OSC 1 mix level; 1: cutoff; 2: OSC 2 mix level; 3: contour; 4: external OSC 3 mix level; 5: half brightness. At X centre, 0, 2, and 4 are all bright. |
-| Up | 0: OSC 1 pitch/range; 1: OSC 2 interval; 2: OSC 2 fine-tune distance from centre; 3-5: off. |
+| Up | 0, 2, and 4: selected OSC 1, OSC 2, or external OSC 3. LED 1 shows OSC 2 or OSC 3 pitch deviation from centre. LEDs 3 and 5 show the selected internal waveform: dark/dark triangle; steady/dark triangle-saw; dark/steady saw; flashing/dark square; dark/flashing wide rectangle; flashing/flashing narrow rectangle. |
 | Down | 0: external OSC 3 pitch offset; 1: external-LFO depth; 2: LFO pitch/filter balance; 3-4: off; 5: half brightness. |
 | Down held 4 seconds | LED 5 flashes as a warning. |
 | Down held 5 seconds | LEDs 0-2 show a future preset slot in binary; LED 5 is fully lit. This is currently a non-destructive preview and changes no sound. |

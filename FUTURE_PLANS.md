@@ -44,14 +44,14 @@ intent, not behaviour already promised by the current firmware.
 
 ## Physical Oscillator Pages
 
-- Make a short press and release of the switch cycle through oscillator 1,
-  oscillator 2, and external oscillator 3 setup pages.
-- On each page, make the three knobs available for that source's volume,
-  waveform or equivalent function, and pitch offset/range.
-- For oscillator 3, which is external, replace the waveform selector with an
-  external-source-specific control to be chosen during hardware testing.
-- Define this gesture alongside the held-down modulation page and five-second
-  preset hold, so a short press cannot accidentally enter either state.
+- Implemented: a Down press and release within half a second cycles oscillator
+  1, oscillator 2, and external oscillator 3 setup pages. A longer Down hold
+  retains the modulation page and five-second preset gesture.
+- The initial mapping is Main range/pitch or external offset, X source level,
+  and Y waveform for the internal oscillators. OSC 2 fine tune moves to the
+  Web UI for now.
+- For external OSC 3, Y selects a future external-output role. Connect it to
+  the selectable `Pulse Out 1` behaviour after those output modes exist.
 
 ## Oscillator Page LED Grammar
 

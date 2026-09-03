@@ -15,6 +15,7 @@
         <h1>Minimoog Voice Lab</h1>
       </div>
       <div class="topbar-actions">
+        <button id="midiConnect" class="connect-button" type="button">Connect MIDI</button>
         <div class="theme-toggle" role="group" aria-label="Colour theme">
           <button type="button" data-theme="light">Light</button>
           <button type="button" data-theme="dark">Dark</button>
@@ -24,7 +25,7 @@
 
     <section class="panel-map" aria-label="Physical panel mapping">
       <div><span>Middle</span><strong>Cutoff · Oscillator mix · Contour</strong></div>
-      <div><span>Up</span><strong>OSC 1 range · OSC 2 interval · Fine tune</strong></div>
+      <div><span>Up</span><strong>Selected OSC: Range · Level · Wave / Role</strong></div>
       <div><span>Hold down</span><strong>OSC 3 CV · External LFO depth · Destination</strong></div>
       <div><span>Long hold</span><strong>4 s warning · 5 s preset selection</strong></div>
     </section>
@@ -102,6 +103,33 @@
         <label>CV Out 1<select><option selected>OSC 3 pitch</option><option>Filter cutoff</option><option>Envelope</option></select></label>
         <label>CV Out 2<select><option selected>Amplitude contour</option><option>Filter contour</option><option>LFO</option></select></label>
       </fieldset>
+    </section>
+
+    <section class="midi-tools" aria-label="MIDI connection and developer monitor">
+      <div class="midi-tools-head">
+        <div>
+          <span class="eyebrow">WebMIDI</span>
+          <h2>Connection</h2>
+        </div>
+        <output id="midiStatus" class="midi-status" aria-live="polite">Not connected</output>
+      </div>
+      <div class="midi-ports">
+        <label>Input<select id="midiInput"><option>No MIDI access</option></select></label>
+        <label>Output<select id="midiOutput"><option>No MIDI access</option></select></label>
+        <button id="midiRefresh" type="button">Refresh ports</button>
+      </div>
+      <details class="developer-tools">
+        <summary>Developer monitor</summary>
+        <div class="developer-actions">
+          <button id="midiClearLog" type="button">Clear log</button>
+          <label class="midi-filter"><input id="midiShowAll" type="checkbox"> Show all MIDI</label>
+        </div>
+        <pre id="midiLog" class="midi-log" aria-live="polite">Waiting for MIDI traffic.</pre>
+        <div class="sysex-send">
+          <label>Raw SysEx<input id="midiSysex" type="text" spellcheck="false" placeholder="F0 7D ... F7"></label>
+          <button id="midiSendSysex" type="button">Send</button>
+        </div>
+      </details>
     </section>
   </main>
   <script src="app.js"></script>

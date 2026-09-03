@@ -160,6 +160,9 @@ public:
 
         if (mode != previousMode)
             resetMinimoogPagePickup(mode, main, x, y);
+
+        if (mode != Switch::Down && previousMode == Switch::Down)
+            completeDownPress(main, x, y);
         lastMode = mode;
 
         // Middle is the playable voice, up is oscillator setup, and the held
@@ -216,6 +219,7 @@ public:
             PulseOut1(false);
             PulseOut2(false);
 
+            waveformFlashSamples++;
             updateMinimoogLeds(mode);
         }
     }
@@ -242,6 +246,13 @@ private:
         Square,
         WideRectangle,
         NarrowPulse
+    };
+
+    enum class OscillatorSetupPage : uint8_t
+    {
+        Oscillator1,
+        Oscillator2,
+        ExternalOscillator3
     };
 
     struct EnvelopeStage
@@ -376,6 +387,7 @@ private:
     static constexpr uint32_t SaveConfirmSamples = 48000u;
     static constexpr uint32_t PresetWarningSamples = 192000u; // Four seconds.
     static constexpr uint32_t PresetSelectHoldSamples = 240000u; // Five seconds.
+    static constexpr uint32_t ShortSwitchPressSamples = 24000u; // Half a second.
     static constexpr uint8_t PresetSlotCount = 8u;
 
     struct SavedPerformanceState
@@ -595,6 +607,10 @@ private:
         int32_t ampScale2 = ampScale1;
         osc1 = (osc1 * ampScale1) >> 12;
         osc2 = (osc2 * ampScale2) >> 12;
+        osc1 = (osc1 * osc1LevelControl) >> 12;
+        osc2 = (osc2 * osc2LevelControl) >> 12;
+        externalOscillator =
+            (externalOscillator * externalOscillatorLevelControl) >> 12;
 
         int32_t mixed = scanOscillatorMixer(osc1, osc2, externalOscillator, mixerPosition);
         mixed = warmMixerSaturation(mixed);
@@ -2187,18 +2203,52 @@ private:
 
     void updateOscillatorControls(int32_t main, int32_t x, int32_t y)
     {
+        if (oscillatorSetupPage == OscillatorSetupPage::Oscillator1)
+        {
+            if (pickupPageControl(
+                    main, oscillatorPagePickup.mainEntry, pitchControl,
+                    oscillatorPagePickup.mainPickedUp))
+                pitchControl = main;
+            if (pickupPageControl(
+                    x, oscillatorPagePickup.xEntry, osc1LevelControl,
+                    oscillatorPagePickup.xPickedUp))
+                osc1LevelControl = x;
+            if (pickupPageControl(
+                    y, oscillatorPagePickup.yEntry, waveControl,
+                    oscillatorPagePickup.yPickedUp))
+                waveControl = y;
+            return;
+        }
+
+        if (oscillatorSetupPage == OscillatorSetupPage::Oscillator2)
+        {
+            if (pickupPageControl(
+                    main, oscillatorPagePickup.mainEntry, osc2IntervalControl,
+                    oscillatorPagePickup.mainPickedUp))
+                osc2IntervalControl = main;
+            if (pickupPageControl(
+                    x, oscillatorPagePickup.xEntry, osc2LevelControl,
+                    oscillatorPagePickup.xPickedUp))
+                osc2LevelControl = x;
+            if (pickupPageControl(
+                    y, oscillatorPagePickup.yEntry, wave2Control,
+                    oscillatorPagePickup.yPickedUp))
+                wave2Control = y;
+            return;
+        }
+
         if (pickupPageControl(
-                main, oscillatorPagePickup.mainEntry, pitchControl,
+                main, oscillatorPagePickup.mainEntry, externalOscillatorOffset,
                 oscillatorPagePickup.mainPickedUp))
-            pitchControl = main;
+            externalOscillatorOffset = main;
         if (pickupPageControl(
-                x, oscillatorPagePickup.xEntry, osc2IntervalControl,
+                x, oscillatorPagePickup.xEntry, externalOscillatorLevelControl,
                 oscillatorPagePickup.xPickedUp))
-            osc2IntervalControl = x;
+            externalOscillatorLevelControl = x;
         if (pickupPageControl(
-                y, oscillatorPagePickup.yEntry, osc2Detune + 2048,
+                y, oscillatorPagePickup.yEntry, externalOscillatorRoleControl,
                 oscillatorPagePickup.yPickedUp))
-            setDetuneFromControl(y);
+            externalOscillatorRoleControl = y;
     }
 
     void updateModulationControls(int32_t main, int32_t x, int32_t y)
@@ -2276,6 +2326,17 @@ private:
             presetSelectMode = true;
     }
 
+    void completeDownPress(int32_t main, int32_t x, int32_t y)
+    {
+        if (downHoldSamples == 0 || downHoldSamples > ShortSwitchPressSamples)
+            return;
+
+        uint8_t page = (uint8_t)oscillatorSetupPage;
+        page = (page + 1u) % 3u;
+        oscillatorSetupPage = (OscillatorSetupPage)page;
+        resetPagePickup(oscillatorPagePickup, main, x, y);
+    }
+
     void updatePresetSelection(int32_t main)
     {
         uint8_t selected =
@@ -2329,12 +2390,7 @@ private:
 
         if (mode == Switch::Up)
         {
-            LedBrightness(0, pitchControl);
-            LedBrightness(1, osc2IntervalControl);
-            LedBrightness(2, bipolarControlBrightness(osc2Detune + 2048));
-            LedBrightness(3, 0);
-            LedBrightness(4, 0);
-            LedBrightness(5, 0);
+            showOscillatorPageLeds();
             return;
         }
 
@@ -2347,6 +2403,59 @@ private:
         bool warning = downHoldSamples >= PresetWarningSamples;
         bool flash = ((downHoldSamples / 6000u) & 1u) != 0u;
         LedBrightness(5, warning && flash ? 4095 : 2048);
+    }
+
+    void showOscillatorPageLeds()
+    {
+        uint8_t selected = (uint8_t)oscillatorSetupPage;
+        LedBrightness(0, selected == 0u ? 4095 : 0);
+        LedBrightness(2, selected == 1u ? 4095 : 0);
+        LedBrightness(4, selected == 2u ? 4095 : 0);
+
+        int32_t deviation = 0;
+        if (oscillatorSetupPage == OscillatorSetupPage::Oscillator2)
+            deviation = bipolarControlBrightness(osc2IntervalControl);
+        else if (oscillatorSetupPage == OscillatorSetupPage::ExternalOscillator3)
+            deviation = bipolarControlBrightness(externalOscillatorOffset);
+        LedBrightness(1, deviation);
+
+        if (oscillatorSetupPage == OscillatorSetupPage::ExternalOscillator3)
+        {
+            LedBrightness(3, 0);
+            LedBrightness(5, 0);
+            return;
+        }
+
+        int32_t waveControl = oscillatorSetupPage == OscillatorSetupPage::Oscillator1
+            ? this->waveControl : wave2Control;
+        bool flash = ((waveformFlashSamples / 12000u) & 1u) != 0u;
+        switch (controlToMoogWave(waveControl))
+        {
+            case MoogWave::Triangle:
+                LedBrightness(3, 0);
+                LedBrightness(5, 0);
+                break;
+            case MoogWave::TriangleSaw:
+                LedBrightness(3, 4095);
+                LedBrightness(5, 0);
+                break;
+            case MoogWave::Saw:
+                LedBrightness(3, 0);
+                LedBrightness(5, 4095);
+                break;
+            case MoogWave::Square:
+                LedBrightness(3, flash ? 4095 : 0);
+                LedBrightness(5, 0);
+                break;
+            case MoogWave::WideRectangle:
+                LedBrightness(3, 0);
+                LedBrightness(5, flash ? 4095 : 0);
+                break;
+            case MoogWave::NarrowPulse:
+                LedBrightness(3, flash ? 4095 : 0);
+                LedBrightness(5, flash ? 4095 : 0);
+                break;
+        }
     }
 
     void showPresetPreviewLeds(uint8_t slot)
@@ -3658,6 +3767,10 @@ private:
     int32_t smoothedFreq = 0;
     int32_t osc2Detune = 0;
     int32_t osc2IntervalControl = 2048;
+    int32_t osc1LevelControl = 4095;
+    int32_t osc2LevelControl = 4095;
+    int32_t externalOscillatorLevelControl = 4095;
+    int32_t externalOscillatorRoleControl = 0;
     int32_t osc2Ring = 0;
     int32_t osc2Noise = 0;
     int32_t filterCutoffControl = 3072;
@@ -3673,6 +3786,8 @@ private:
     uint32_t downHoldSamples = 0;
     bool presetSelectMode = false;
     uint8_t presetPreviewSlot = 0;
+    OscillatorSetupPage oscillatorSetupPage = OscillatorSetupPage::Oscillator1;
+    uint32_t waveformFlashSamples = 0;
     int32_t synthMainEntry = 2048;
     int32_t synthXEntry = 0;
     int32_t synthYEntry = 0;
