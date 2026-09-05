@@ -46,7 +46,7 @@ pitch/CV loop and external-LFO modulation.
 | Switch state | LEDs |
 | --- | --- |
 | Middle | 0: OSC 1 mix level; 1: cutoff; 2: OSC 2 mix level; 3: contour; 4: external OSC 3 mix level; 5: half brightness. At X centre, 0, 2, and 4 are all bright. |
-| Up | 0, 2, and 4: selected OSC 1, OSC 2, or external OSC 3. LED 1 shows OSC 2 or OSC 3 pitch deviation from centre. LEDs 3 and 5 show the selected internal waveform: dark/dark triangle; steady/dark triangle-saw; dark/steady saw; flashing/dark square; dark/flashing wide rectangle; flashing/flashing narrow rectangle. |
+| Up | 0, 2, and 4: selected OSC 1, OSC 2, or external OSC 3. LED 1 shows OSC 2 or OSC 3 pitch deviation from centre. LEDs 3 and 5 show the selected internal waveform: dark/dark triangle; steady/dark triangle/sawtooth (sharktooth); dark/steady saw; flashing/dark square; dark/flashing wide rectangle; flashing/flashing narrow rectangle. |
 | Down | 0: external OSC 3 pitch offset; 1: external-LFO depth; 2: LFO pitch/filter balance; 3-4: off; 5: half brightness. |
 | Down held 4 seconds | LED 5 flashes as a warning. |
 | Down held 5 seconds | LEDs 0-2 show a future preset slot in binary; LED 5 is fully lit. This is currently a non-destructive preview and changes no sound. |
@@ -55,7 +55,8 @@ The filter is currently a stable four-stage low-pass placeholder. Its detailed
 ladder saturation and envelope design remain the next hardware-led work.
 
 The oscillator pass uses a generated, zero-DC, multiband wavetable bank:
-triangle, triangle-to-saw, saw, square, wide rectangle, and narrow rectangle.
+triangle, triangle/sawtooth (sharktooth), saw, square, wide rectangle, and
+narrow rectangle.
 Each shape has nine harmonic bands and is selected from pitch, reducing aliasing
 at higher notes. OSC 1 starts as saw and OSC 2 starts as square; the panel and
 Web UI waveform controls are still to be connected. This remains separate from

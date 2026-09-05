@@ -6,24 +6,24 @@ intent, not behaviour already promised by the current firmware.
 ## Waveforms And Web UI
 
 - Replace the first-pass arithmetic oscillator shapes with a band-limited LUT
-  oscillator bank. The initial set is triangle, triangle-to-saw, saw, square,
+  oscillator bank. The initial set is triangle, triangle/sawtooth (sharktooth), saw, square,
   wide pulse, and narrow pulse.
 - C1ZZL3 LUT assessment: retain its interpolated 1,024-sample sine table only
   as an optional utility. Its 8 x 4,096 phase-distortion table has a raw ramp
   and raw square plus intentionally complex PD shapes; it has no suitable
-  triangle, triangle-to-saw, wide-pulse, or narrow-pulse source and is not
+  triangle, sharktooth, wide-pulse, or narrow-pulse source and is not
   band-limited. Do not reuse it for the Minimoog oscillator bank.
 - First pass implemented: a dedicated 512-sample, nine-band Minimoog
   wavetable set selects a harmonic band from oscillator frequency. Tune the
   band boundaries and consider adjacent-band crossfades if hardware testing
   reveals audible timbral steps.
-- Tune the tables and their level matching on the Workshop Computer before
-  exposing waveform selection in the Web UI; the current simple shapes remain
-  audibly harsh at higher pitches.
+- Tune the tables and their level matching on the Workshop Computer. The
+  sharktooth must remain a distinct waveform profile, not a triangle/saw mix.
 - Turn the existing visual parameter map into a Minimoog Voice-owned WebMIDI
   control surface.
 - Expose oscillator 1 and oscillator 2 waveform selection separately:
-  triangle, triangle-to-saw, saw, square, wide pulse, and narrow pulse.
+  triangle, triangle/sawtooth (sharktooth), saw, square, wide pulse, and
+  narrow pulse.
 - Use the browser layout to decide grouping before committing those choices to
   the three physical knobs and switch modes.
 
@@ -60,7 +60,7 @@ intent, not behaviour already promised by the current firmware.
 - Use LED 1 for oscillator 2 and oscillator 3 pitch deviation from centre:
   dark at unison, brighter as the offset moves clockwise or anticlockwise.
 - Encode the selected internal oscillator waveform with LEDs 3 and 5:
-  both dark for triangle; LED 3 steady for triangle-to-saw; LED 5 steady for
+  both dark for triangle; LED 3 steady for triangle/sawtooth (sharktooth); LED 5 steady for
   saw; LED 3 flashing for square; LED 5 flashing for wide rectangle; and LEDs
   3 and 5 flashing together for narrow rectangle.
 
@@ -84,6 +84,22 @@ intent, not behaviour already promised by the current firmware.
   end-of-contour trigger during hardware testing.
 - Confirm the external module's sync polarity, acceptable trigger width, and
   highest reliable hard-sync frequency on Workshop Computer hardware.
+
+## Ladder Filter
+
+- Next implementation step: replace the current first-pass four-stage
+  low-pass with a resonant, fixed four-pole ladder filter.
+- Use Fr330hFr33's division-free feedback-solve and trapezoidal-integrator
+  architecture as the performance reference. Its coefficient preparation and
+  reciprocal lookup belong outside the audio ISR.
+- Do not copy Fr330hFr33's diode-pair saturation or its three-pole mode: those
+  are deliberate TB-303 voicing choices. Develop a transistor-ladder-style
+  input/stage saturation curve for the warmer Minimoog character instead.
+- Expose a musically scaled resonance control, test stable self-oscillation,
+  and retain useful output headroom across high cutoff, resonance, and mixer
+  drive settings.
+- Integrate the separate filter ADSR and keyboard tracking only after the
+  resonant core is stable and voiced on Workshop Computer hardware.
 
 ## Contours And MIDI
 

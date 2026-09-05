@@ -241,7 +241,7 @@ private:
     enum class MoogWave : uint8_t
     {
         Triangle,
-        TriangleSaw,
+        Sharktooth,
         Saw,
         Square,
         WideRectangle,
@@ -2435,7 +2435,7 @@ private:
                 LedBrightness(3, 0);
                 LedBrightness(5, 0);
                 break;
-            case MoogWave::TriangleSaw:
+            case MoogWave::Sharktooth:
                 LedBrightness(3, 4095);
                 LedBrightness(5, 0);
                 break;
