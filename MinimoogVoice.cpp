@@ -8,6 +8,8 @@
 #include "tusb.h"
 #include "usb_midi_host.h"
 
+#include <array>
+
 static constexpr uint8_t WebMidiManufacturer = 0x7Du;
 static constexpr uint8_t WebMidiId[4] = {0x43u, 0x31u, 0x5Au, 0x33u}; // C1Z3
 static constexpr uint8_t WebMidiCommandPreview = 0x01u;
@@ -45,6 +47,19 @@ static constexpr uint32_t WebMidiSoundPresetEnvelopePayloadLength = 279u;
 static constexpr uint32_t WebMidiSoundPresetPd2EnvelopePayloadLength = 281u;
 static constexpr uint32_t WebMidiDeleteEnvelopePayloadLength = 1u;
 static constexpr uint32_t WebMidiMaxSysexLength = 300u;
+
+constexpr std::array<uint16_t, 577> makeLadderReciprocalQ15Table()
+{
+    std::array<uint16_t, 577> table = {};
+    for (uint32_t i = 0; i < table.size(); ++i)
+    {
+        uint32_t denominatorQ15 = 32768u + i * 512u;
+        table[i] = (uint16_t)((1u << 30) / denominatorQ15);
+    }
+    return table;
+}
+
+constexpr auto LadderReciprocalQ15Table = makeLadderReciprocalQ15Table();
 
 class MinimoogVoice : public ComputerCard
 {
@@ -713,21 +728,80 @@ private:
 
     int32_t ladderFilterSample(int32_t input, int32_t cutoff, int32_t resonance)
     {
-        // A four-stage fixed-point low-pass is a stable first stand-in for the
-        // ladder character. The drive and detailed nonlinearity stay for the
-        // next pass, once the panel response has been played on hardware.
-        int32_t coefficient = 48 + ((clamp12(cutoff) * clamp12(cutoff)) >> 14);
-        if (coefficient > 1072)
-            coefficient = 1072;
+        // A four-pole zero-delay-feedback ladder. The global feedback path is
+        // solved through an interpolated reciprocal table, so the audio loop
+        // never performs a general division.
+        int32_t cutoffControl = clamp12(cutoff);
+        int32_t g = 512 + ((cutoffControl * cutoffControl) >> 10);
 
-        int32_t feedback = (ladderStage4 * clamp12(resonance)) >> 12;
-        int32_t sample = clip(input - feedback);
-        ladderStage1 += (coefficient * (sample - ladderStage1)) >> 12;
-        ladderStage2 += (coefficient * (ladderStage1 - ladderStage2)) >> 12;
-        ladderStage3 += (coefficient * (ladderStage2 - ladderStage3)) >> 12;
-        ladderStage4 += (coefficient * (ladderStage3 - ladderStage4)) >> 12;
+        int32_t oneMinusG = 32768 - g;
+        int32_t constant = (oneMinusG * ladderStage1) >> 15;
+        constant = ((g * constant) >> 15) +
+            ((oneMinusG * ladderStage2) >> 15);
+        constant = ((g * constant) >> 15) +
+            ((oneMinusG * ladderStage3) >> 15);
+        constant = ((g * constant) >> 15) +
+            ((oneMinusG * ladderStage4) >> 15);
 
-        return clip(ladderStage4);
+        int32_t g2 = (g * g) >> 15;
+        int32_t g4 = (g2 * g2) >> 15;
+        // Preserve a gentle fixed emphasis until resonance has a dedicated
+        // physical or WebMIDI control. The stored value becomes additional
+        // feedback range in that later control surface.
+        int32_t resonanceQ12 = 4096 + clamp12(resonance);
+        int32_t denominatorQ15 = 32768 +
+            ((resonanceQ12 * g4) >> 12);
+        int32_t driven = input - ((resonanceQ12 * constant) >> 12);
+        driven = (driven * ladderReciprocalQ15(denominatorQ15)) >> 15;
+        driven = transistorLadderSaturation(driven + (driven >> 3));
+
+        driven = ladderFilterStage(driven, g, ladderStage1);
+        driven = ladderFilterStage(driven, g, ladderStage2);
+        driven = ladderFilterStage(driven, g, ladderStage3);
+        ladderFilterStage(driven, g, ladderStage4);
+
+        return clip(transistorLadderSaturation(ladderStage4));
+    }
+
+    int32_t ladderFilterStage(int32_t input, int32_t g, int32_t& state)
+    {
+        int32_t integrator = ((input - state) * g) >> 15;
+        int32_t output = state + integrator;
+        state = transistorLadderSaturation(output + integrator);
+        return output;
+    }
+
+    int32_t ladderReciprocalQ15(int32_t denominatorQ15)
+    {
+        if (denominatorQ15 < 32768)
+            denominatorQ15 = 32768;
+        if (denominatorQ15 > 327680)
+            denominatorQ15 = 327680;
+
+        uint32_t offset = (uint32_t)(denominatorQ15 - 32768);
+        uint32_t index = offset >> 9;
+        uint32_t fraction = offset & 0x1FFu;
+        if (index >= 576u)
+            return LadderReciprocalQ15Table[576];
+
+        int32_t a = LadderReciprocalQ15Table[index];
+        int32_t b = LadderReciprocalQ15Table[index + 1u];
+        return a + (((b - a) * (int32_t)fraction) >> 9);
+    }
+
+    int32_t transistorLadderSaturation(int32_t value)
+    {
+        // A gentle cubic approximation of the transistor pair's decreasing
+        // transconductance. It is symmetric, monotonic in the useful range,
+        // and leaves more harmonic motion than a hard clip.
+        if (value > 4095)
+            value = 4095;
+        else if (value < -4095)
+            value = -4095;
+
+        int32_t magnitude = value < 0 ? -value : value;
+        int32_t curvature = (magnitude * magnitude) >> 12;
+        return value - ((value * curvature) >> 13);
     }
 
     int32_t updateGateAmplitude(bool gateHigh)

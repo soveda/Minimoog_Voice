@@ -51,8 +51,11 @@ pitch/CV loop and external-LFO modulation.
 | Down held 4 seconds | LED 5 flashes as a warning. |
 | Down held 5 seconds | LEDs 0-2 show a future preset slot in binary; LED 5 is fully lit. This is currently a non-destructive preview and changes no sound. |
 
-The filter is currently a stable four-stage low-pass placeholder. Its detailed
-ladder saturation and envelope design remain the next hardware-led work.
+`Audio Out 1` now uses a fixed four-pole, resonant ladder-filter first pass.
+It has a division-free feedback solve and soft transistor-style stage shaping.
+Its resonance amount is currently fixed and gentle; hardware testing will set
+the final voicing before resonance, keyboard tracking, and a filter ADSR are
+exposed as controls.
 
 The oscillator pass uses a generated, zero-DC, multiband wavetable bank:
 triangle, triangle/sawtooth (sharktooth), saw, square, wide rectangle, and
@@ -72,10 +75,10 @@ can be decided in context.
 ## Next Stage
 
 The work staged in [FUTURE_PLANS.md](FUTURE_PLANS.md) covers waveform choices
-in the Web UI, an individual three-oscillator mixer, amp and filter envelopes,
-MIDI integration, and sound presets. The current long-hold LED state is only a
-non-destructive placeholder until those presets save and recall complete voice
-states.
+in the Web UI, an individual three-oscillator mixer, filter voicing and
+controls, amp and filter envelopes, MIDI integration, and sound presets. The
+current long-hold LED state is only a non-destructive placeholder until those
+presets save and recall complete voice states.
 
 ## Build
 

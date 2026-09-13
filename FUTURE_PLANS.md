@@ -87,8 +87,10 @@ intent, not behaviour already promised by the current firmware.
 
 ## Ladder Filter
 
-- Next implementation step: replace the current first-pass four-stage
-  low-pass with a resonant, fixed four-pole ladder filter.
+- First pass implemented: replace the original four-stage low-pass with a
+  resonant, fixed four-pole ladder filter using a division-free feedback solve
+  and soft transistor-style stage shaping. Validate its voicing and stability
+  on Workshop Computer hardware before widening its control surface.
 - Use Fr330hFr33's division-free feedback-solve and trapezoidal-integrator
   architecture as the performance reference. Its coefficient preparation and
   reciprocal lookup belong outside the audio ISR.
