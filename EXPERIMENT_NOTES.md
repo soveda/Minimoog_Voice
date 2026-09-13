@@ -7,6 +7,9 @@ the fallback for workshop testing.
 ## This first pass
 
 - The Web UI now has a complete voice state model for every visible control.
+- `Init Voice` is the neutral calibration preset: every continuous control is
+  at its displayed midpoint, bipolar controls are at zero, and three-way
+  choices use their centre option.
 - Both contours are ADS: attack, decay, and sustain. There is no release stage.
 - Eight factory voices are read-only starting points. Their broad musical roles
   are original patches informed by the Minimoog examples in the Reverb source,

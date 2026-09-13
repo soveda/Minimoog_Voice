@@ -65,7 +65,7 @@
         <legend>Oscillator 1</legend>
         <label>Range<select data-param="osc1.range"><option>32'</option><option>16'</option><option selected>8'</option><option>4'</option><option>2'</option></select></label>
         <label>Waveform<select data-param="osc1.waveform"><option>Triangle</option><option>Triangle / sawtooth</option><option selected>Sawtooth</option><option>Square</option><option>Wide rectangle</option><option>Narrow rectangle</option></select></label>
-        <label>Level<input data-param="osc1.level" data-unit="%" type="range" min="0" max="100" value="82"></label>
+        <label>Level<input data-param="osc1.level" data-unit="%" type="range" min="0" max="100" value="50"></label>
       </fieldset>
 
       <fieldset class="module oscillator">
@@ -74,56 +74,56 @@
         <label>Waveform<select data-param="osc2.waveform"><option>Triangle</option><option>Triangle / sawtooth</option><option>Sawtooth</option><option selected>Square</option><option>Wide rectangle</option><option>Narrow rectangle</option></select></label>
         <label>Interval<input data-param="osc2.interval" data-unit="st" type="range" min="-24" max="24" value="0"></label>
         <label>Fine tune<input data-param="osc2.fineTune" data-unit="ct" type="range" min="-50" max="50" value="0"></label>
-        <label>Level<input data-param="osc2.level" data-unit="%" type="range" min="0" max="100" value="70"></label>
+        <label>Level<input data-param="osc2.level" data-unit="%" type="range" min="0" max="100" value="50"></label>
       </fieldset>
 
       <fieldset class="module external">
         <legend>External Oscillator 3</legend>
         <label>Pitch CV range<select data-param="osc3.pitchRange"><option>Off</option><option selected>1V / octave</option><option>Wide</option></select></label>
         <label>Pitch offset<input data-param="osc3.offset" data-unit="st" type="range" min="-24" max="24" value="0"></label>
-        <label>Audio return<input data-param="osc3.returnLevel" data-unit="%" type="range" min="0" max="100" value="0"></label>
+        <label>Audio return<input data-param="osc3.returnLevel" data-unit="%" type="range" min="0" max="100" value="50"></label>
         <label>Sync mode<select data-param="osc3.syncMode"><option selected>Free running</option><option>Envelope reset</option><option>Hard sync</option></select></label>
       </fieldset>
 
       <fieldset class="module mixer">
         <legend>Mixer And Drive</legend>
-        <label>OSC 1 level<input data-param="mixer.osc1Level" data-unit="%" type="range" min="0" max="100" value="82"></label>
-        <label>OSC 2 level<input data-param="mixer.osc2Level" data-unit="%" type="range" min="0" max="100" value="70"></label>
-        <label>OSC 3 return<input data-param="mixer.osc3Return" data-unit="%" type="range" min="0" max="100" value="0"></label>
-        <label>Noise<input data-param="mixer.noise" data-unit="%" type="range" min="0" max="100" value="0"></label>
-        <label>Drive<input data-param="mixer.drive" data-unit="%" type="range" min="0" max="100" value="12"></label>
+        <label>OSC 1 level<input data-param="mixer.osc1Level" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>OSC 2 level<input data-param="mixer.osc2Level" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>OSC 3 return<input data-param="mixer.osc3Return" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Noise<input data-param="mixer.noise" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Drive<input data-param="mixer.drive" data-unit="%" type="range" min="0" max="100" value="50"></label>
       </fieldset>
 
       <fieldset class="module filter wide">
         <legend>Ladder Filter</legend>
-        <label>Cutoff<input data-param="filter.cutoff" data-unit="Hz" type="range" min="20" max="12000" value="1800"></label>
-        <label>Emphasis<input data-param="filter.emphasis" data-unit="%" type="range" min="0" max="100" value="18"></label>
-        <label>Contour<input data-param="filter.contour" data-unit="%" type="range" min="0" max="100" value="54"></label>
+        <label>Cutoff<input data-param="filter.cutoff" data-unit="Hz" type="range" min="20" max="12000" value="6010"></label>
+        <label>Emphasis<input data-param="filter.emphasis" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Contour<input data-param="filter.contour" data-unit="%" type="range" min="0" max="100" value="50"></label>
         <label>Keyboard tracking<select data-param="filter.keyboardTracking"><option>Off</option><option selected>Half</option><option>Full</option></select></label>
         <label>Filter CV attenuator<input data-param="filter.cvAttenuator" data-unit="%" type="range" min="-100" max="100" value="0"></label>
       </fieldset>
 
       <fieldset class="module envelope">
         <legend>Filter Contour</legend>
-        <label>Attack<input data-param="filterAds.attack" data-unit="ms" type="range" min="0" max="5000" value="12"></label>
-        <label>Decay<input data-param="filterAds.decay" data-unit="ms" type="range" min="0" max="5000" value="430"></label>
-        <label>Sustain<input data-param="filterAds.sustain" data-unit="%" type="range" min="0" max="100" value="42"></label>
+        <label>Attack<input data-param="filterAds.attack" data-unit="ms" type="range" min="0" max="5000" value="2500"></label>
+        <label>Decay<input data-param="filterAds.decay" data-unit="ms" type="range" min="0" max="5000" value="2500"></label>
+        <label>Sustain<input data-param="filterAds.sustain" data-unit="%" type="range" min="0" max="100" value="50"></label>
       </fieldset>
 
       <fieldset class="module envelope">
         <legend>Amplifier Contour</legend>
-        <label>Attack<input data-param="ampAds.attack" data-unit="ms" type="range" min="0" max="5000" value="8"></label>
-        <label>Decay<input data-param="ampAds.decay" data-unit="ms" type="range" min="0" max="5000" value="350"></label>
-        <label>Sustain<input data-param="ampAds.sustain" data-unit="%" type="range" min="0" max="100" value="68"></label>
+        <label>Attack<input data-param="ampAds.attack" data-unit="ms" type="range" min="0" max="5000" value="2500"></label>
+        <label>Decay<input data-param="ampAds.decay" data-unit="ms" type="range" min="0" max="5000" value="2500"></label>
+        <label>Sustain<input data-param="ampAds.sustain" data-unit="%" type="range" min="0" max="100" value="50"></label>
       </fieldset>
 
       <fieldset class="module modulation wide">
         <legend>Modulation</legend>
         <label>Source<select data-param="modulation.source"><option>Internal LFO</option><option selected>External LFO / CV In 2</option><option>Filter contour</option></select></label>
-        <label>LFO rate<input data-param="modulation.rate" data-unit="Hz" type="range" min="0" max="30" step="0.1" value="4.2"></label>
-        <label>Depth<input data-param="modulation.depth" data-unit="%" type="range" min="0" max="100" value="0"></label>
+        <label>LFO rate<input data-param="modulation.rate" data-unit="Hz" type="range" min="0" max="30" step="0.1" value="15"></label>
+        <label>Depth<input data-param="modulation.depth" data-unit="%" type="range" min="0" max="100" value="50"></label>
         <label>Pitch / filter blend<input data-param="modulation.blend" data-unit="%" type="range" min="0" max="100" value="50"></label>
-        <label>Glide<input data-param="modulation.glide" data-unit="ms" type="range" min="0" max="3000" value="0"></label>
+        <label>Glide<input data-param="modulation.glide" data-unit="ms" type="range" min="0" max="3000" value="1500"></label>
       </fieldset>
 
       <fieldset class="module io wide">
