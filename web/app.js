@@ -1,153 +1,79 @@
 const root = document.documentElement;
-const savedTheme = localStorage.getItem("minimoog-theme");
-const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+const storageKey = "minimoog-voice-experimental-presets-v1";
 const midi = { access: null, input: null, output: null, log: [] };
+const preset = { baseline: null, active: null, current: null, userSlots: [] };
 const midiElements = {
-  connect: document.querySelector("#midiConnect"),
-  refresh: document.querySelector("#midiRefresh"),
-  input: document.querySelector("#midiInput"),
-  output: document.querySelector("#midiOutput"),
-  status: document.querySelector("#midiStatus"),
-  log: document.querySelector("#midiLog"),
-  clearLog: document.querySelector("#midiClearLog"),
-  showAll: document.querySelector("#midiShowAll"),
-  sysex: document.querySelector("#midiSysex"),
-  sendSysex: document.querySelector("#midiSendSysex")
+  connect: document.querySelector("#midiConnect"), refresh: document.querySelector("#midiRefresh"),
+  input: document.querySelector("#midiInput"), output: document.querySelector("#midiOutput"),
+  status: document.querySelector("#midiStatus"), log: document.querySelector("#midiLog"),
+  clearLog: document.querySelector("#midiClearLog"), showAll: document.querySelector("#midiShowAll"),
+  sysex: document.querySelector("#midiSysex"), sendSysex: document.querySelector("#midiSendSysex")
 };
+const presetElements = Object.fromEntries(["name:presetName", "slot:userSlot", "status:presetStatus", "factory:factoryPresets", "user:userPresets", "new:presetNew", "duplicate:presetDuplicate", "save:presetSave", "reset:presetReset"].map((pair) => { const [key, id] = pair.split(":"); return [key, document.querySelector(`#${id}`)]; }));
 
-function setTheme(theme) {
-  root.dataset.theme = theme;
-  localStorage.setItem("minimoog-theme", theme);
-  document.querySelectorAll("[data-theme]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.theme === theme);
-  });
+const clone = (value) => JSON.parse(JSON.stringify(value));
+function merge(base, patch) { Object.entries(patch).forEach(([key, value]) => { if (value && typeof value === "object" && !Array.isArray(value)) merge(base[key], value); else base[key] = value; }); return base; }
+function setPath(object, path, value) { const parts = path.split("."); const key = parts.pop(); parts.reduce((target, part) => target[part], object)[key] = value; }
+function valueFor(input) { return input.type === "range" ? Number(input.value) : input.value; }
+function updateReadout(input) { const readout = input.nextElementSibling; if (readout?.classList.contains("range-readout")) readout.value = `${input.value}${input.dataset.unit ? ` ${input.dataset.unit}` : ""}`; }
+function setTheme(theme) { root.dataset.theme = theme; localStorage.setItem("minimoog-theme", theme); document.querySelectorAll("[data-theme]").forEach((button) => button.classList.toggle("is-active", button.dataset.theme === theme)); }
+function readControls() {
+  const sound = { name: "Init Voice" };
+  document.querySelectorAll("[data-param]").forEach((input) => { const parts = input.dataset.param.split("."); let target = sound; parts.slice(0, -1).forEach((part) => { target[part] ||= {}; target = target[part]; }); target[parts.at(-1)] = valueFor(input); });
+  return sound;
 }
-
-document.querySelectorAll("[data-theme]").forEach((button) => {
-  button.addEventListener("click", () => setTheme(button.dataset.theme));
-});
-
-document.querySelectorAll('input[type="range"]').forEach((input) => {
-  const readout = document.createElement("output");
-  readout.className = "range-readout";
-  input.insertAdjacentElement("afterend", readout);
-
-  const updateReadout = () => {
-    readout.value = `${input.value}${input.dataset.unit ? ` ${input.dataset.unit}` : ""}`;
-  };
-
-  input.addEventListener("input", updateReadout);
-  updateReadout();
-});
-
-function midiPortName(port) {
-  return port.name || port.manufacturer || port.id;
+function applySound(sound) { document.querySelectorAll("[data-param]").forEach((input) => { const value = input.dataset.param.split(".").reduce((target, part) => target?.[part], sound); if (value !== undefined) input.value = value; if (input.type === "range") updateReadout(input); }); presetElements.name.value = sound.name; }
+function voice(name, changes) { return merge(merge(clone(preset.baseline), { name }), changes); }
+function factoryVoices() {
+  return [
+    voice("Init Voice", {}),
+    voice("Funk Glide Bass", { osc1: { range: "16'", waveform: "Sawtooth", level: 92 }, osc2: { range: "16'", waveform: "Square", level: 78 }, mixer: { osc1Level: 92, osc2Level: 78, drive: 26 }, filter: { cutoff: 720, emphasis: 34, contour: 72 }, filterAds: { attack: 5, decay: 310, sustain: 18 }, ampAds: { attack: 4, decay: 260, sustain: 72 }, modulation: { glide: 105 } }),
+    voice("Three Saw Bass", { osc1: { range: "16'", waveform: "Sawtooth", level: 86 }, osc2: { range: "16'", waveform: "Sawtooth", interval: 7, level: 78 }, osc3: { returnLevel: 70 }, mixer: { osc1Level: 86, osc2Level: 78, osc3Return: 70, drive: 22 }, filter: { cutoff: 540, emphasis: 16, contour: 44 }, filterAds: { attack: 5, decay: 410, sustain: 28 }, ampAds: { attack: 4, decay: 350, sustain: 78 } }),
+    voice("West Coast Whistle", { osc1: { range: "4'", waveform: "Triangle", level: 72 }, osc2: { range: "4'", waveform: "Triangle / sawtooth", interval: 12, fineTune: 7, level: 42 }, mixer: { osc1Level: 72, osc2Level: 42, drive: 4 }, filter: { cutoff: 4260, emphasis: 48, contour: 36, keyboardTracking: "Full" }, filterAds: { attack: 90, decay: 820, sustain: 0 }, ampAds: { attack: 38, decay: 720, sustain: 0 }, modulation: { source: "Internal LFO", rate: 5.8, depth: 18, blend: 80, glide: 70 } }),
+    voice("Glide Mod Arp", { osc1: { waveform: "Sawtooth", level: 80 }, osc2: { waveform: "Narrow rectangle", interval: 12, level: 55 }, mixer: { osc1Level: 80, osc2Level: 55, drive: 14 }, filter: { cutoff: 1880, emphasis: 38, contour: 74, keyboardTracking: "Full" }, filterAds: { attack: 12, decay: 480, sustain: 24 }, ampAds: { attack: 9, decay: 360, sustain: 58 }, modulation: { source: "Internal LFO", rate: 7.2, depth: 31, blend: 64, glide: 180 } }),
+    voice("Slow Brass Lead", { osc1: { waveform: "Sawtooth", level: 82 }, osc2: { waveform: "Wide rectangle", fineTune: 11, level: 66 }, mixer: { osc1Level: 82, osc2Level: 66, drive: 18 }, filter: { cutoff: 1320, emphasis: 22, contour: 68 }, filterAds: { attack: 220, decay: 980, sustain: 46 }, ampAds: { attack: 180, decay: 860, sustain: 76 }, modulation: { glide: 130 } }),
+    voice("Sub Pulse Bass", { osc1: { range: "32'", waveform: "Square", level: 84 }, osc2: { range: "16'", waveform: "Wide rectangle", level: 63 }, mixer: { osc1Level: 84, osc2Level: 63, drive: 30 }, filter: { cutoff: 410, emphasis: 12, contour: 52, keyboardTracking: "Off" }, filterAds: { attack: 3, decay: 250, sustain: 34 }, ampAds: { attack: 3, decay: 230, sustain: 82 } }),
+    voice("Resonant Pulse Lead", { osc1: { waveform: "Narrow rectangle", level: 74 }, osc2: { waveform: "Square", interval: 12, fineTune: -5, level: 67 }, mixer: { osc1Level: 74, osc2Level: 67, drive: 12 }, filter: { cutoff: 2460, emphasis: 56, contour: 77, keyboardTracking: "Full" }, filterAds: { attack: 18, decay: 640, sustain: 20 }, ampAds: { attack: 11, decay: 520, sustain: 62 }, modulation: { source: "Internal LFO", rate: 4.4, depth: 8, blend: 60, glide: 55 } })
+  ];
 }
-
-function setMidiStatus(message) {
-  midiElements.status.value = message;
+function loadUserSlots() { try { const stored = JSON.parse(localStorage.getItem(storageKey)); if (Array.isArray(stored) && stored.length === 8) return stored; } catch {} return Array(8).fill(null); }
+function isDirty() { return JSON.stringify(preset.current) !== JSON.stringify(preset.active?.sound); }
+function updatePresetStatus() { const origin = preset.active?.kind === "factory" ? "Factory preset" : preset.active?.kind === "user" ? `User slot ${preset.active.slot + 1}` : "Unsaved voice"; presetElements.status.value = `${origin}${isDirty() ? " · modified" : ""}`; }
+function activate(sound, active) { preset.active = { ...active, sound: clone(sound) }; preset.current = clone(sound); applySound(preset.current); renderPresetBank(); updatePresetStatus(); }
+function button(name, selected, action, empty = false) { const element = document.createElement("button"); element.type = "button"; element.className = `preset-button${selected ? " is-active" : ""}${empty ? " is-empty" : ""}`; element.textContent = name; element.addEventListener("click", action); return element; }
+function renderPresetBank() {
+  const factory = factoryVoices();
+  presetElements.factory.replaceChildren(...factory.map((sound, index) => button(sound.name, preset.active?.kind === "factory" && preset.active.index === index, () => activate(sound, { kind: "factory", index }))));
+  presetElements.user.replaceChildren(...preset.userSlots.map((sound, index) => button(sound ? sound.name : `User ${index + 1} · empty`, preset.active?.kind === "user" && preset.active.slot === index, () => sound && activate(sound, { kind: "user", slot: index }), !sound)));
+  presetElements.slot.replaceChildren(...preset.userSlots.map((sound, index) => new Option(sound ? `${index + 1}: ${sound.name}` : `${index + 1}: Empty`, index)));
+  if (preset.active?.kind === "user") presetElements.slot.value = preset.active.slot;
 }
+function updateCurrent(input) { setPath(preset.current, input.dataset.param, valueFor(input)); updateReadout(input); updatePresetStatus(); }
+function saveUserSlot() { const slot = Number(presetElements.slot.value); preset.current.name = presetElements.name.value.trim().slice(0, 16) || "Untitled Voice"; preset.userSlots[slot] = clone(preset.current); localStorage.setItem(storageKey, JSON.stringify(preset.userSlots)); activate(preset.userSlots[slot], { kind: "user", slot }); }
 
-function renderMidiLog() {
-  midiElements.log.textContent = midi.log.length ? midi.log.join("\n") : "Waiting for MIDI traffic.";
-  midiElements.log.scrollTop = midiElements.log.scrollHeight;
-}
+document.querySelectorAll("[data-theme]").forEach((button) => button.addEventListener("click", () => setTheme(button.dataset.theme)));
+document.querySelectorAll('input[type="range"]').forEach((input) => { const readout = document.createElement("output"); readout.className = "range-readout"; input.insertAdjacentElement("afterend", readout); input.addEventListener("input", () => updateCurrent(input)); updateReadout(input); });
+document.querySelectorAll("select[data-param]").forEach((input) => input.addEventListener("change", () => updateCurrent(input)));
+presetElements.name.addEventListener("input", () => { preset.current.name = presetElements.name.value.slice(0, 16); updatePresetStatus(); });
+presetElements.new.addEventListener("click", () => activate(merge(clone(preset.baseline), { name: "New Voice" }), { kind: "new" }));
+presetElements.duplicate.addEventListener("click", () => { const copy = clone(preset.current); copy.name = `${copy.name.slice(0, 11)} Copy`; activate(copy, { kind: "new" }); });
+presetElements.save.addEventListener("click", saveUserSlot);
+presetElements.reset.addEventListener("click", () => activate(preset.active.sound, preset.active));
 
-function logMidi(direction, data) {
-  const isSysEx = data[0] === 0xf0;
-  if (!isSysEx && !midiElements.showAll.checked) return;
-  const bytes = Array.from(data, (byte) => byte.toString(16).padStart(2, "0").toUpperCase()).join(" ");
-  const type = isSysEx ? "SysEx" : "MIDI";
-  midi.log.push(`${new Date().toLocaleTimeString()} ${direction} ${type}: ${bytes}`);
-  if (midi.log.length > 200) midi.log.shift();
-  renderMidiLog();
-}
+function midiPortName(port) { return port.name || port.manufacturer || port.id; }
+function setMidiStatus(message) { midiElements.status.value = message; }
+function renderMidiLog() { midiElements.log.textContent = midi.log.length ? midi.log.join("\n") : "Waiting for MIDI traffic."; midiElements.log.scrollTop = midiElements.log.scrollHeight; }
+function logMidi(direction, data) { const sysex = data[0] === 0xf0; if (!sysex && !midiElements.showAll.checked) return; const bytes = Array.from(data, (byte) => byte.toString(16).padStart(2, "0").toUpperCase()).join(" "); midi.log.push(`${new Date().toLocaleTimeString()} ${direction} ${sysex ? "SysEx" : "MIDI"}: ${bytes}`); if (midi.log.length > 200) midi.log.shift(); renderMidiLog(); }
+function populate(select, ports, selected) { const previous = selected?.id || select.value; select.replaceChildren(); if (!ports.length) { select.add(new Option("No ports available", "")); return null; } ports.forEach((port) => select.add(new Option(midiPortName(port), port.id))); const preferred = ports.find((port) => /minimoog voice/i.test(midiPortName(port))); select.value = ports.some((port) => port.id === previous) ? previous : (preferred || ports[0]).id; return ports.find((port) => port.id === select.value) || null; }
+function detachMidiInput() { if (midi.input) midi.input.onmidimessage = null; }
+function selectMidiPorts() { if (!midi.access) return; const input = populate(midiElements.input, [...midi.access.inputs.values()], midi.input); const output = populate(midiElements.output, [...midi.access.outputs.values()], midi.output); if (input?.id !== midi.input?.id) { detachMidiInput(); midi.input = input || null; if (midi.input) midi.input.onmidimessage = (event) => logMidi("IN", event.data); } midi.output = output || null; setMidiStatus(midi.input || midi.output ? `Connected: ${midiPortName(midi.output || midi.input)}` : "No MIDI ports found"); }
+async function connectMidi() { if (!navigator.requestMIDIAccess) { setMidiStatus("WebMIDI is unavailable in this browser"); return; } try { midi.access = await navigator.requestMIDIAccess({ sysex: true }); midi.access.onstatechange = selectMidiPorts; selectMidiPorts(); midiElements.connect.textContent = "Reconnect MIDI"; } catch (error) { setMidiStatus(`MIDI connection failed: ${error.message}`); } }
+function parseSysEx(value) { const bytes = value.trim().split(/\s+/).filter(Boolean).map((token) => { if (!/^[0-9a-f]{1,2}$/i.test(token)) throw new Error(`Invalid byte: ${token}`); return Number.parseInt(token, 16); }); if (bytes.length < 2 || bytes[0] !== 0xf0 || bytes.at(-1) !== 0xf7) throw new Error("SysEx must start with F0 and end with F7"); return bytes; }
+midiElements.connect.addEventListener("click", connectMidi); midiElements.refresh.addEventListener("click", selectMidiPorts);
+midiElements.input.addEventListener("change", () => { if (!midi.access) return; detachMidiInput(); midi.input = midi.access.inputs.get(midiElements.input.value) || null; if (midi.input) midi.input.onmidimessage = (event) => logMidi("IN", event.data); selectMidiPorts(); });
+midiElements.output.addEventListener("change", () => { if (!midi.access) return; midi.output = midi.access.outputs.get(midiElements.output.value) || null; selectMidiPorts(); });
+midiElements.clearLog.addEventListener("click", () => { midi.log = []; renderMidiLog(); });
+midiElements.sendSysex.addEventListener("click", () => { try { if (!midi.output) throw new Error("Choose a MIDI output first"); const bytes = parseSysEx(midiElements.sysex.value); midi.output.send(bytes); logMidi("OUT", bytes); } catch (error) { setMidiStatus(error.message); } });
 
-function populatePortSelect(select, ports, selectedPort) {
-  const previous = selectedPort?.id || select.value;
-  select.replaceChildren();
-  if (!ports.length) {
-    select.add(new Option("No ports available", ""));
-    return null;
-  }
-  ports.forEach((port) => select.add(new Option(midiPortName(port), port.id)));
-  const preferred = ports.find((port) => /minimoog voice/i.test(midiPortName(port)));
-  select.value = ports.some((port) => port.id === previous) ? previous : (preferred || ports[0]).id;
-  return ports.find((port) => port.id === select.value) || null;
-}
-
-function detachMidiInput() {
-  if (midi.input) midi.input.onmidimessage = null;
-}
-
-function selectMidiPorts() {
-  if (!midi.access) return;
-  const inputs = [...midi.access.inputs.values()];
-  const outputs = [...midi.access.outputs.values()];
-  const nextInput = populatePortSelect(midiElements.input, inputs, midi.input);
-  const nextOutput = populatePortSelect(midiElements.output, outputs, midi.output);
-  if (nextInput?.id !== midi.input?.id) {
-    detachMidiInput();
-    midi.input = nextInput || null;
-    if (midi.input) midi.input.onmidimessage = (event) => logMidi("IN", event.data);
-  }
-  midi.output = nextOutput || null;
-  setMidiStatus(midi.input || midi.output ? `Connected: ${midiPortName(midi.output || midi.input)}` : "No MIDI ports found");
-}
-
-async function connectMidi() {
-  if (!navigator.requestMIDIAccess) {
-    setMidiStatus("WebMIDI is unavailable in this browser");
-    return;
-  }
-  try {
-    midi.access = await navigator.requestMIDIAccess({ sysex: true });
-    midi.access.onstatechange = selectMidiPorts;
-    selectMidiPorts();
-    midiElements.connect.textContent = "Reconnect MIDI";
-  } catch (error) {
-    setMidiStatus(`MIDI connection failed: ${error.message}`);
-  }
-}
-
-function parseSysEx(value) {
-  const bytes = value.trim().split(/\s+/).filter(Boolean).map((token) => {
-    if (!/^[0-9a-f]{1,2}$/i.test(token)) throw new Error(`Invalid byte: ${token}`);
-    return Number.parseInt(token, 16);
-  });
-  if (bytes.length < 2 || bytes[0] !== 0xf0 || bytes.at(-1) !== 0xf7) {
-    throw new Error("SysEx must start with F0 and end with F7");
-  }
-  return bytes;
-}
-
-midiElements.connect.addEventListener("click", connectMidi);
-midiElements.refresh.addEventListener("click", selectMidiPorts);
-midiElements.input.addEventListener("change", () => {
-  if (!midi.access) return;
-  detachMidiInput();
-  midi.input = midi.access.inputs.get(midiElements.input.value) || null;
-  if (midi.input) midi.input.onmidimessage = (event) => logMidi("IN", event.data);
-  setMidiStatus(midi.input || midi.output ? `Connected: ${midiPortName(midi.output || midi.input)}` : "Not connected");
-});
-midiElements.output.addEventListener("change", () => {
-  if (!midi.access) return;
-  midi.output = midi.access.outputs.get(midiElements.output.value) || null;
-  setMidiStatus(midi.input || midi.output ? `Connected: ${midiPortName(midi.output || midi.input)}` : "Not connected");
-});
-midiElements.clearLog.addEventListener("click", () => {
-  midi.log = [];
-  renderMidiLog();
-});
-midiElements.sendSysex.addEventListener("click", () => {
-  try {
-    if (!midi.output) throw new Error("Choose a MIDI output first");
-    const bytes = parseSysEx(midiElements.sysex.value);
-    midi.output.send(bytes);
-    logMidi("OUT", bytes);
-  } catch (error) {
-    setMidiStatus(error.message);
-  }
-});
-
-setTheme(savedTheme || preferredTheme);
+setTheme(localStorage.getItem("minimoog-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+preset.baseline = readControls(); preset.userSlots = loadUserSlots(); activate(factoryVoices()[0], { kind: "factory", index: 0 });
