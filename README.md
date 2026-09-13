@@ -95,3 +95,9 @@ The initial platform, USB MIDI host support, and lookup tables derive from
 `Workshop_Computer/releases/101_Gnarly_C1ZZL3` at commit
 `bf4ecbbed2f2075a6d008f2cba18f70502593b86`. The inherited code and its
 licence notices remain under the MIT License.
+
+The bundled `ComputerCard.h` is the canonical ComputerCard `0.4.0` release.
+Its calibrated audio-input path now applies to the pitch-CV and external-audio
+inputs, and its scaled knob range improves access to the full 0--4095 control
+travel. The firmware continues to run at 192 MHz, an exact multiple of the
+48 kHz audio rate required for the framework's low-artifact CV PWM timing.
