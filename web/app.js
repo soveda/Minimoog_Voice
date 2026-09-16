@@ -9,7 +9,7 @@ const midiElements = {
   clearLog: document.querySelector("#midiClearLog"), showAll: document.querySelector("#midiShowAll"),
   sysex: document.querySelector("#midiSysex"), sendSysex: document.querySelector("#midiSendSysex"), probe: document.querySelector("#midiProbe")
 };
-const presetElements = Object.fromEntries(["name:presetName", "slot:userSlot", "status:presetStatus", "factory:factoryPresets", "user:userPresets", "new:presetNew", "duplicate:presetDuplicate", "save:presetSave", "reset:presetReset"].map((pair) => { const [key, id] = pair.split(":"); return [key, document.querySelector(`#${id}`)]; }));
+const presetElements = Object.fromEntries(["name:presetName", "slot:userSlot", "status:presetStatus", "factory:factoryPresets", "user:userPresets", "new:presetNew", "duplicate:presetDuplicate", "save:presetSave", "delete:presetDelete", "reset:presetReset"].map((pair) => { const [key, id] = pair.split(":"); return [key, document.querySelector(`#${id}`)]; }));
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 function merge(base, patch) { Object.entries(patch).forEach(([key, value]) => { if (value && typeof value === "object" && !Array.isArray(value)) merge(base[key], value); else base[key] = value; }); return base; }
@@ -50,6 +50,7 @@ function renderPresetBank() {
 }
 function updateCurrent(input) { setPath(preset.current, input.dataset.param, valueFor(input)); updateReadout(input); updatePresetStatus(); }
 function saveUserSlot() { const slot = Number(presetElements.slot.value); preset.current.name = presetElements.name.value.trim().slice(0, 16) || "Untitled Voice"; preset.userSlots[slot] = clone(preset.current); localStorage.setItem(storageKey, JSON.stringify(preset.userSlots)); activate(preset.userSlots[slot], { kind: "user", slot }); }
+function deleteUserSlot() { const slot = Number(presetElements.slot.value); const sound = preset.userSlots[slot]; if (!sound || !window.confirm(`Delete user voice ${slot + 1}: ${sound.name}?`)) return; preset.userSlots[slot] = null; localStorage.setItem(storageKey, JSON.stringify(preset.userSlots)); activate(factoryVoices()[0], { kind: "factory", index: 0 }); }
 
 document.querySelectorAll("[data-theme]").forEach((button) => button.addEventListener("click", () => setTheme(button.dataset.theme)));
 document.querySelectorAll('input[type="range"]').forEach((input) => { const readout = document.createElement("output"); readout.className = "range-readout"; input.insertAdjacentElement("afterend", readout); input.addEventListener("input", () => updateCurrent(input)); updateReadout(input); });
@@ -58,6 +59,7 @@ presetElements.name.addEventListener("input", () => { preset.current.name = pres
 presetElements.new.addEventListener("click", () => activate(merge(clone(preset.baseline), { name: "New Voice" }), { kind: "new" }));
 presetElements.duplicate.addEventListener("click", () => { const copy = clone(preset.current); copy.name = `${copy.name.slice(0, 11)} Copy`; activate(copy, { kind: "new" }); });
 presetElements.save.addEventListener("click", saveUserSlot);
+presetElements.delete.addEventListener("click", deleteUserSlot);
 presetElements.reset.addEventListener("click", () => activate(preset.active.sound, preset.active));
 
 function midiPortName(port) { return port.name || port.manufacturer || port.id; }
