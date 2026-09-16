@@ -1,4 +1,4 @@
-# Minimoog Voice
+# Cosmik M1N1
 
 An in-progress, Minimoog-influenced mono voice for the Music Thing Modular
 Workshop Computer. It begins from the stable C1ZZL3 Gnarly architecture, while
@@ -71,10 +71,10 @@ the inherited C1ZZL3 phase-distortion engine.
 ## Web Control Surface
 
 Serve `web/` locally and open it in Chrome or Edge. The Web UI has the factory
-bank and eight named browser-local user slots, plus a WebMIDI connection and
-developer monitor. The card now supports the compact `MNV1` protocol for
-identity, user-slot listing, save, recall, read, and delete; dedicated Web UI
-controls for those operations are the next UI refinement.
+bank and eight named card-backed user slots, plus a WebMIDI connection and
+developer monitor. The card uses the compact `MNV1` request protocol and a
+reliable MIDI CC response channel for identity, user-slot listing, capture,
+recall, and delete.
 
 ## Next Stage
 

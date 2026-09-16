@@ -56,8 +56,8 @@ char const *string_desc_arr[] =
 {
     (const char[]){0x09, 0x04},
     "Adrian Vos",
-    "Minimoog Voice",
-    "MinimoogVoice"
+    "Cosmik M1N1",
+    "CosmikM1N1"
 };
 
 static uint16_t desc_str[32];
