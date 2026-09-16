@@ -4310,6 +4310,8 @@ void usbMidiWorker()
 {
     sleep_ms(100);
     bool hostMode = card.ShouldBootUsbHost();
+    uint32_t lastUsbDiagnosticAt = 0;
+    uint8_t usbDiagnosticCount = 0;
 
     if (hostMode)
         tuh_init(0);
@@ -4325,6 +4327,16 @@ void usbMidiWorker()
         else
         {
             tud_task();
+
+            // Temporary transport diagnostic: confirms that device-to-host MIDI
+            // works even when the browser has not sent a request.
+            uint32_t now = time_us_32();
+            if (tud_midi_mounted() && (uint32_t)(now - lastUsbDiagnosticAt) >= 1000000u)
+            {
+                uint8_t frame[] = {0xF0u, 0x7Du, 0x4Du, 0x4Eu, 0x56u, 0x31u, 0x7Eu, usbDiagnosticCount++, 0xF7u};
+                if (tud_midi_stream_write(0, frame, sizeof(frame)) == sizeof(frame))
+                    lastUsbDiagnosticAt = now;
+            }
             card.SendPendingUsbMidiOutput();
 
             uint8_t bytes[64];
