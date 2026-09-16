@@ -72,6 +72,9 @@ constexpr std::array<uint16_t, 577> makeLadderReciprocalQ15Table()
 
 constexpr auto LadderReciprocalQ15Table = makeLadderReciprocalQ15Table();
 
+static volatile bool usbMidiDiagnosticMounted = false;
+static volatile bool usbMidiDiagnosticWriteAccepted = false;
+
 class MinimoogVoice : public ComputerCard
 {
 public:
@@ -257,6 +260,8 @@ public:
 
             waveformFlashSamples++;
             updateMinimoogLeds(mode);
+            LedBrightness(0, usbMidiDiagnosticMounted ? 4095 : 0);
+            LedBrightness(1, usbMidiDiagnosticWriteAccepted ? 4095 : 0);
         }
     }
 
@@ -4331,11 +4336,15 @@ void usbMidiWorker()
             // Temporary transport diagnostic: confirms that device-to-host MIDI
             // works even when the browser has not sent a request.
             uint32_t now = time_us_32();
-            if (tud_midi_mounted() && (uint32_t)(now - lastUsbDiagnosticAt) >= 1000000u)
+            usbMidiDiagnosticMounted = tud_midi_mounted();
+            if (usbMidiDiagnosticMounted && (uint32_t)(now - lastUsbDiagnosticAt) >= 1000000u)
             {
                 uint8_t frame[] = {0xF0u, 0x7Du, 0x4Du, 0x4Eu, 0x56u, 0x31u, 0x7Eu, usbDiagnosticCount++, 0xF7u};
                 if (tud_midi_stream_write(0, frame, sizeof(frame)) == sizeof(frame))
+                {
+                    usbMidiDiagnosticWriteAccepted = true;
                     lastUsbDiagnosticAt = now;
+                }
             }
             card.SendPendingUsbMidiOutput();
 
