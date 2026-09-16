@@ -73,7 +73,7 @@ constexpr std::array<uint16_t, 577> makeLadderReciprocalQ15Table()
 constexpr auto LadderReciprocalQ15Table = makeLadderReciprocalQ15Table();
 
 static volatile bool usbMidiDiagnosticMounted = false;
-static volatile bool usbMidiDiagnosticWriteAccepted = false;
+static volatile uint8_t usbMidiDiagnosticWriteCount = 0;
 
 class MinimoogVoice : public ComputerCard
 {
@@ -261,7 +261,11 @@ public:
             waveformFlashSamples++;
             updateMinimoogLeds(mode);
             LedBrightness(0, usbMidiDiagnosticMounted ? 4095 : 0);
-            LedBrightness(1, usbMidiDiagnosticWriteAccepted ? 4095 : 0);
+            LedBrightness(1, usbMidiDiagnosticWriteCount & 1u ? 4095 : 0);
+            LedOff(2);
+            LedOff(3);
+            LedOff(4);
+            LedOff(5);
         }
     }
 
@@ -4342,7 +4346,7 @@ void usbMidiWorker()
                 uint8_t frame[] = {0xF0u, 0x7Du, 0x4Du, 0x4Eu, 0x56u, 0x31u, 0x7Eu, usbDiagnosticCount++, 0xF7u};
                 if (tud_midi_stream_write(0, frame, sizeof(frame)) == sizeof(frame))
                 {
-                    usbMidiDiagnosticWriteAccepted = true;
+                    usbMidiDiagnosticWriteCount++;
                     lastUsbDiagnosticAt = now;
                 }
             }
