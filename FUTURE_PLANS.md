@@ -120,8 +120,9 @@ intent, not behaviour already promised by the current firmware.
 
 ## Presets And Identity
 
-- Replace the long-hold placeholder LEDs with actual preset selection only
-  after a preset stores and restores every audible voice parameter.
+- Factory-preset recall now stores every currently audible voice control in
+  firmware. Add the remaining ADS and later routing controls to this compact
+  record as they become audible, then introduce separate user flash slots.
 - Build a C1ZZL3-style named preset workflow in the Web UI: a browser-side
   preset list, editable preset name, card-slot selector, recall, save sound
   preset, rename, duplicate/new, and overwrite/delete confirmation.
@@ -141,10 +142,9 @@ intent, not behaviour already promised by the current firmware.
 
 ## Factory Voice Bank
 
-- Ship a dependable `Init Voice` as the selected first preset: a single
-  medium-level saw, neutral tuning, modest cutoff, no modulation, and a
-  practical amp/filter contour. It is the known baseline for calibration and
-  patch building.
+- Ship a dependable `Init Voice` as the selected first preset: every
+  continuous control at its displayed midpoint and all bipolar controls at
+  zero. It is the known neutral baseline for calibration and patch building.
 - Build original, clearly descriptive factory voices informed by the five
   classic Minimoog sound-design examples in the referenced Reverb article:
   `Funk Glide Bass`, `Three Saw Bass`, `West Coast Whistle`, `Glide Mod Arp`,

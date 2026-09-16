@@ -24,9 +24,11 @@ pitch/CV loop and external-LFO modulation.
   its current settings until each physical knob reaches or crosses that
   setting, avoiding jumps between pages.
 - Either pulse input or a USB MIDI note drives the first-pass VCA/gate.
-- Holding down for four seconds flashes LED 5 as a warning; at five seconds the
-  Main knob previews one of eight future sound-preset slots without changing
-  the current voice.
+- Hold Down during the first half-second after startup to enter factory-preset
+  selection immediately. Turn Main to choose a voice and release Down to load it.
+- At any other time, hold Down for four seconds for the LED 5 warning, continue
+  to five seconds to enter factory-preset selection, then turn Main and release
+  Down to load the selected voice.
 - `CV Out 1` follows the current voice pitch for an external oscillator.
 - `Audio Out 1` is the filtered voice and `Audio Out 2` is the pre-filter mix.
 
@@ -49,12 +51,12 @@ pitch/CV loop and external-LFO modulation.
 | Up | 0, 2, and 4: selected OSC 1, OSC 2, or external OSC 3. LED 1 shows OSC 2 or OSC 3 pitch deviation from centre. LEDs 3 and 5 show the selected internal waveform: dark/dark triangle; steady/dark triangle/sawtooth (sharktooth); dark/steady saw; flashing/dark square; dark/flashing wide rectangle; flashing/flashing narrow rectangle. |
 | Down | 0: external OSC 3 pitch offset; 1: external-LFO depth; 2: LFO pitch/filter balance; 3-4: off; 5: half brightness. |
 | Down held 4 seconds | LED 5 flashes as a warning. |
-| Down held 5 seconds | LEDs 0-2 show a future preset slot in binary; LED 5 is fully lit. This is currently a non-destructive preview and changes no sound. |
+| Startup Down hold or Down held 5 seconds | LEDs 0-2 show the candidate factory voice as binary `0-7`; LED 3 flashes as the live selector cursor; LED 4 is lit when the candidate is already loaded; LED 5 is fully lit. Release Down to recall the selected voice. |
 
 `Audio Out 1` now uses a fixed four-pole, resonant ladder-filter first pass.
 It has a division-free feedback solve and soft transistor-style stage shaping.
 Its resonance amount is currently fixed and gentle; hardware testing will set
-the final voicing before resonance, keyboard tracking, and a filter ADSR are
+the final voicing before resonance, keyboard tracking, and a filter ADS are
 exposed as controls.
 
 The oscillator pass uses a generated, zero-DC, multiband wavetable bank:
@@ -67,18 +69,15 @@ the inherited C1ZZL3 phase-distortion engine.
 
 ## Web Control Surface
 
-Open `web/index.html` in a browser. This first screen is deliberately a visual
-parameter map, not yet a WebMIDI transport. It includes every planned voice,
-mixer, filter, contour, modulation, and patch-point control so their grouping
-can be decided in context.
+Serve `web/` locally and open it in Chrome or Edge. The Web UI has the factory
+bank and eight named browser-local user slots, plus a WebMIDI connection and
+developer monitor. It does not yet transfer voice state to the card.
 
 ## Next Stage
 
-The work staged in [FUTURE_PLANS.md](FUTURE_PLANS.md) covers waveform choices
-in the Web UI, an individual three-oscillator mixer, filter voicing and
-controls, amp and filter envelopes, MIDI integration, and sound presets. The
-current long-hold LED state is only a non-destructive placeholder until those
-presets save and recall complete voice states.
+The work staged in [FUTURE_PLANS.md](FUTURE_PLANS.md) covers WebMIDI voice
+transfer and user flash slots, an individual three-oscillator mixer, filter
+voicing and controls, amp and filter ADS envelopes, and MIDI integration.
 
 ## Build
 

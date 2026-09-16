@@ -74,6 +74,7 @@ public:
 
         loadPerformanceState();
         loadCustomEnvelopeState();
+        applyFactoryPreset(0u);
     }
 
     bool ShouldBootUsbHost()
@@ -183,9 +184,10 @@ public:
         // Middle is the playable voice, up is oscillator setup, and the held
         // down page is reserved for external oscillator and LFO performance.
         {
+            updateStartupPresetSelection(mode, main);
             updateMinimoogHoldState(mode, previousMode);
 
-            if (presetSelectMode)
+            if (startupPresetSelectMode || presetSelectMode)
             {
                 updatePresetSelection(main);
             }
@@ -404,6 +406,30 @@ private:
     static constexpr uint32_t PresetSelectHoldSamples = 240000u; // Five seconds.
     static constexpr uint32_t ShortSwitchPressSamples = 24000u; // Half a second.
     static constexpr uint8_t PresetSlotCount = 8u;
+
+    // This compact record contains every currently audible Minimoog voice
+    // control. It is intentionally separate from the inherited C1ZZL3
+    // performance and multi-envelope flash formats.
+    struct VoicePreset
+    {
+        const char* name;
+        int32_t pitch;
+        int32_t osc2Interval;
+        int32_t osc2Detune;
+        int32_t wave1;
+        int32_t wave2;
+        int32_t osc1Level;
+        int32_t osc2Level;
+        int32_t externalLevel;
+        int32_t externalRole;
+        int32_t filterCutoff;
+        int32_t oscillatorMix;
+        int32_t contour;
+        int32_t resonance;
+        int32_t externalOffset;
+        int32_t lfoDepth;
+        int32_t lfoDestination;
+    };
 
     struct SavedPerformanceState
     {
@@ -2381,6 +2407,76 @@ private:
         return pickedUp;
     }
 
+    const VoicePreset& factoryPreset(uint8_t slot) const
+    {
+        // Keep this order aligned with the Web UI factory bank. The factory
+        // bank is compile-time data for this pass; user flash slots arrive with
+        // the new WebMIDI protocol rather than the C1ZZL3 envelope store.
+        static constexpr VoicePreset presets[PresetSlotCount] = {
+            {"Init Voice", 2048, 2048, 0, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048},
+            {"Funk Glide Bass", 2048, 2048, 0, 1638, 2457, 3767, 3194, 0, 0, 720, 1710, 2948, 1393, 2048, 0, 2048},
+            {"Three Saw Bass", 2048, 2644, 0, 1638, 1638, 3522, 3194, 2866, 0, 540, 1536, 1802, 655, 2048, 0, 2048},
+            {"West Coast Whistle", 3072, 4095, 7, 0, 819, 2948, 1720, 0, 0, 3400, 2048, 1475, 1966, 2048, 737, 3276},
+            {"Glide Mod Arp", 2048, 3072, 0, 1638, 4095, 3276, 2252, 0, 0, 1880, 2048, 3030, 1556, 2048, 1269, 2621},
+            {"Slow Brass Lead", 2048, 2048, 11, 1638, 3276, 3358, 2702, 0, 0, 1320, 2048, 2785, 901, 2048, 0, 2048},
+            {"Sub Pulse Bass", 2048, 2048, 0, 2457, 3276, 3440, 2580, 0, 0, 410, 2048, 2130, 491, 2048, 0, 2048},
+            {"Resonant Pulse Lead", 2048, 3072, -5, 4095, 2457, 3030, 2744, 0, 0, 2460, 2048, 3153, 2293, 2048, 328, 2458}
+        };
+        return presets[slot & 0x07u];
+    }
+
+    void applyFactoryPreset(uint8_t slot)
+    {
+        const VoicePreset& preset = factoryPreset(slot);
+        pitchControl = preset.pitch;
+        osc2IntervalControl = preset.osc2Interval;
+        osc2Detune = preset.osc2Detune;
+        waveControl = preset.wave1;
+        wave2Control = preset.wave2;
+        osc1LevelControl = preset.osc1Level;
+        osc2LevelControl = preset.osc2Level;
+        externalOscillatorLevelControl = preset.externalLevel;
+        externalOscillatorRoleControl = preset.externalRole;
+        filterCutoffControl = preset.filterCutoff;
+        oscillatorMixControl = preset.oscillatorMix;
+        contourControl = preset.contour;
+        filterResonanceControl = preset.resonance;
+        externalOscillatorOffset = preset.externalOffset;
+        lfoDepthControl = preset.lfoDepth;
+        lfoDestinationControl = preset.lfoDestination;
+        activePresetSlot = slot & 0x07u;
+    }
+
+    void recallFactoryPreset(uint8_t slot, Switch mode, int32_t main, int32_t x, int32_t y)
+    {
+        applyFactoryPreset(slot);
+        resetMinimoogPagePickup(mode, main, x, y);
+    }
+
+    void updateStartupPresetSelection(Switch mode, int32_t main)
+    {
+        if (startupSelectChecked)
+            return;
+
+        if (startupPresetSelectMode)
+            return;
+
+        if (startupSelectSamples < StartupSelectWindowSamples)
+            startupSelectSamples++;
+
+        if (mode == Switch::Down)
+        {
+            // Holding Down while power is applied enters selection immediately;
+            // no five-second gesture is required before the first half-second.
+            startupPresetSelectMode = true;
+            updatePresetSelection(main);
+            return;
+        }
+
+        if (startupSelectSamples >= StartupSelectWindowSamples)
+            startupSelectChecked = true;
+    }
+
     void updateMinimoogHoldState(Switch mode, Switch previousMode)
     {
         if (mode != Switch::Down)
@@ -2402,6 +2498,23 @@ private:
 
     void completeDownPress(int32_t main, int32_t x, int32_t y)
     {
+        if (startupPresetSelectMode)
+        {
+            recallFactoryPreset(presetPreviewSlot, Switch::Middle, main, x, y);
+            startupPresetSelectMode = false;
+            startupSelectChecked = true;
+            downHoldSamples = 0;
+            return;
+        }
+
+        if (presetSelectMode)
+        {
+            recallFactoryPreset(presetPreviewSlot, Switch::Middle, main, x, y);
+            presetSelectMode = false;
+            downHoldSamples = 0;
+            return;
+        }
+
         if (downHoldSamples == 0 || downHoldSamples > ShortSwitchPressSamples)
             return;
 
@@ -2418,9 +2531,6 @@ private:
         if (selected >= PresetSlotCount)
             selected = PresetSlotCount - 1u;
 
-        // The first pass has no Minimoog sound presets to load yet. Keep the
-        // long-hold slot selector visible and harmless until those settings
-        // have real stored data behind them.
         presetPreviewSlot = selected;
     }
 
@@ -2439,7 +2549,7 @@ private:
 
     void updateMinimoogLeds(Switch mode)
     {
-        if (presetSelectMode)
+        if (startupPresetSelectMode || presetSelectMode)
         {
             showPresetPreviewLeds(presetPreviewSlot);
             return;
@@ -2537,8 +2647,9 @@ private:
         LedBrightness(0, slot & 1u ? 4095 : 0);
         LedBrightness(1, slot & 2u ? 4095 : 0);
         LedBrightness(2, slot & 4u ? 4095 : 0);
-        LedBrightness(3, 0);
-        LedBrightness(4, 0);
+        bool cursorFlash = ((waveformFlashSamples / 6000u) & 1u) != 0u;
+        LedBrightness(3, cursorFlash ? 4095 : 0);
+        LedBrightness(4, slot == activePresetSlot ? 4095 : 0);
         LedBrightness(5, 4095);
     }
 
@@ -3859,7 +3970,9 @@ private:
     PanelPagePickup modulationPagePickup = {};
     uint32_t downHoldSamples = 0;
     bool presetSelectMode = false;
+    bool startupPresetSelectMode = false;
     uint8_t presetPreviewSlot = 0;
+    uint8_t activePresetSlot = 0;
     OscillatorSetupPage oscillatorSetupPage = OscillatorSetupPage::Oscillator1;
     uint32_t waveformFlashSamples = 0;
     int32_t synthMainEntry = 2048;
