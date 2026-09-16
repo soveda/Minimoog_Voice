@@ -25,7 +25,7 @@ pitch/CV loop and external-LFO modulation.
   its current settings until each physical knob reaches or crosses that
   setting, avoiding jumps between pages.
 - Either pulse input or a USB MIDI note drives the first-pass VCA/gate.
-- Hold Down during the first half-second after startup to enter factory-preset
+- Hold Down during the first half-second after startup to enter preset
   selection immediately. Turn Main to choose a voice and release Down to load it.
 - At any other time, hold Down for four seconds for the LED 5 warning, continue
   to five seconds to enter factory-preset selection, then turn Main and release
@@ -52,7 +52,7 @@ pitch/CV loop and external-LFO modulation.
 | Up | 0, 2, and 4: selected OSC 1, OSC 2, or external OSC 3. LED 1 shows OSC 2 or OSC 3 pitch deviation from centre. LEDs 3 and 5 show the selected internal waveform: dark/dark triangle; steady/dark triangle/sawtooth (sharktooth); dark/steady saw; flashing/dark square; dark/flashing wide rectangle; flashing/flashing narrow rectangle. |
 | Down | 0: external OSC 3 pitch offset; 1: external-LFO depth; 2: LFO pitch/filter balance; 3-4: off; 5: half brightness. |
 | Down held 4 seconds | LED 5 flashes as a warning. |
-| Startup Down hold or Down held 5 seconds | LEDs 0-2 show the candidate factory voice as binary `0-7`; LED 3 flashes as the live selector cursor; LED 4 is lit when the candidate is already loaded; LED 5 is fully lit. Release Down to recall the selected voice. |
+| Startup Down hold or Down held 5 seconds | LEDs 0-2 show index `0-7`; LED 3 flashes as the live selector cursor; LED 4 is bright for the active preset, half bright for another available preset, and dark for an empty user slot. LED 5 off is factory; LED 5 on is user. Release Down to recall the selected voice. |
 
 `Audio Out 1` now uses a fixed four-pole, resonant ladder-filter first pass.
 It has a division-free feedback solve and soft transistor-style stage shaping.
@@ -72,7 +72,9 @@ the inherited C1ZZL3 phase-distortion engine.
 
 Serve `web/` locally and open it in Chrome or Edge. The Web UI has the factory
 bank and eight named browser-local user slots, plus a WebMIDI connection and
-developer monitor. It does not yet transfer voice state to the card.
+developer monitor. The card now supports the compact `MNV1` protocol for
+identity, user-slot listing, save, recall, read, and delete; dedicated Web UI
+controls for those operations are the next UI refinement.
 
 ## Next Stage
 

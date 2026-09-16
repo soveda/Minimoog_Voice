@@ -12,6 +12,17 @@
 
 static constexpr uint8_t WebMidiManufacturer = 0x7Du;
 static constexpr uint8_t WebMidiId[4] = {0x43u, 0x31u, 0x5Au, 0x33u}; // C1Z3
+static constexpr uint8_t MinimoogMidiId[4] = {0x4Du, 0x4Eu, 0x56u, 0x31u}; // MNV1
+static constexpr uint8_t MinimoogMidiCommandIdentityRequest = 0x01u;
+static constexpr uint8_t MinimoogMidiCommandIdentityResponse = 0x02u;
+static constexpr uint8_t MinimoogMidiCommandRequestSlots = 0x03u;
+static constexpr uint8_t MinimoogMidiCommandSlotsResponse = 0x04u;
+static constexpr uint8_t MinimoogMidiCommandRequestUser = 0x05u;
+static constexpr uint8_t MinimoogMidiCommandUserResponse = 0x06u;
+static constexpr uint8_t MinimoogMidiCommandSaveUser = 0x07u;
+static constexpr uint8_t MinimoogMidiCommandRecall = 0x08u;
+static constexpr uint8_t MinimoogMidiCommandDeleteUser = 0x09u;
+static constexpr uint8_t MinimoogMidiCommandAck = 0x0Au;
 static constexpr uint8_t WebMidiCommandPreview = 0x01u;
 static constexpr uint8_t WebMidiCommandSaveEnvelope = 0x02u;
 static constexpr uint8_t WebMidiCommandSettings = 0x03u;
@@ -74,6 +85,7 @@ public:
 
         loadPerformanceState();
         loadCustomEnvelopeState();
+        loadUserPresetBank();
         applyFactoryPreset(0u);
     }
 
@@ -402,6 +414,10 @@ private:
     static constexpr uint16_t CustomEnvelopeSaveVersion = 9;
     static constexpr uint32_t CustomEnvelopeFlashOffset =
         SaveFlashOffset - FLASH_SECTOR_SIZE;
+    static constexpr uint32_t UserPresetFlashOffset =
+        CustomEnvelopeFlashOffset - FLASH_SECTOR_SIZE;
+    static constexpr uint32_t UserPresetMagic = 0x4D4E5650u; // MNVP
+    static constexpr uint16_t UserPresetVersion = 1u;
     static constexpr uint32_t SaveHoldSamples = 384000u;
     static constexpr uint32_t SaveConfirmSamples = 48000u;
     static constexpr uint32_t PresetWarningSamples = 192000u; // Four seconds.
@@ -417,7 +433,6 @@ private:
         const char* name;
         int32_t pitch;
         int32_t osc2Interval;
-        int32_t osc2Detune;
         int32_t wave1;
         int32_t wave2;
         int32_t osc1Level;
@@ -431,6 +446,37 @@ private:
         int32_t externalOffset;
         int32_t lfoDepth;
         int32_t lfoDestination;
+    };
+
+    struct SavedUserVoice
+    {
+        int32_t pitch;
+        int32_t osc2Interval;
+        int32_t wave1;
+        int32_t wave2;
+        int32_t osc1Level;
+        int32_t osc2Level;
+        int32_t externalLevel;
+        int32_t externalRole;
+        int32_t filterCutoff;
+        int32_t oscillatorMix;
+        int32_t contour;
+        int32_t resonance;
+        int32_t externalOffset;
+        int32_t lfoDepth;
+        int32_t lfoDestination;
+    };
+
+    struct SavedUserPresetBank
+    {
+        uint32_t magic;
+        uint16_t version;
+        uint16_t size;
+        uint8_t loadedMask;
+        uint8_t reserved[7];
+        uint8_t names[PresetSlotCount][16];
+        SavedUserVoice voices[PresetSlotCount];
+        uint32_t checksum;
     };
 
     struct SavedPerformanceState
@@ -1257,6 +1303,11 @@ private:
 
     void handleWebMidiSysex()
     {
+        if (minimoogMidiHeaderMatches())
+        {
+            handleMinimoogMidiSysex();
+            return;
+        }
         if (!webMidiHeaderMatches())
             return;
 
@@ -1316,6 +1367,79 @@ private:
         {
             handleWebMidiRequestAmp2Envelope();
             return;
+        }
+    }
+
+    bool minimoogMidiHeaderMatches()
+    {
+        if (sysexLength < 6u || sysexBuffer[0] != WebMidiManufacturer) return false;
+        for (uint32_t i = 0; i < 4u; ++i) if (sysexBuffer[1u + i] != MinimoogMidiId[i]) return false;
+        return true;
+    }
+
+    void sendMinimoogMidi(uint8_t command, const uint8_t* payload, uint32_t length)
+    {
+        uint8_t frame[192] = {0xF0u, WebMidiManufacturer, MinimoogMidiId[0], MinimoogMidiId[1], MinimoogMidiId[2], MinimoogMidiId[3], command};
+        if (length > sizeof(frame) - 8u) return;
+        for (uint32_t i = 0; i < length; ++i) frame[7u + i] = payload[i] & 0x7Fu;
+        frame[7u + length] = 0xF7u;
+        tud_midi_stream_write(0, frame, length + 8u);
+    }
+
+    void appendMinimoogVoice(uint8_t* payload, uint32_t& offset, const SavedUserVoice& voice)
+    {
+        const int32_t values[] = {voice.pitch, voice.osc2Interval, voice.wave1, voice.wave2, voice.osc1Level, voice.osc2Level, voice.externalLevel, voice.externalRole, voice.filterCutoff, voice.oscillatorMix, voice.contour, voice.resonance, voice.externalOffset, voice.lfoDepth, voice.lfoDestination};
+        for (int32_t value : values) { uint16_t safe = clamp12(value); payload[offset++] = safe & 0x7Fu; payload[offset++] = safe >> 7; }
+    }
+
+    SavedUserVoice readMinimoogVoice(uint32_t& offset)
+    {
+        int32_t values[15] = {};
+        for (uint32_t i = 0; i < 15u; ++i) { values[i] = (sysexBuffer[offset] & 0x7Fu) | ((sysexBuffer[offset + 1u] & 0x7Fu) << 7); offset += 2u; }
+        return {values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13], values[14]};
+    }
+
+    void handleMinimoogMidiSysex()
+    {
+        uint8_t command = sysexBuffer[5];
+        if (command == MinimoogMidiCommandIdentityRequest && sysexLength == 6u)
+        {
+            uint8_t payload[] = {1u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
+            sendMinimoogMidi(MinimoogMidiCommandIdentityResponse, payload, sizeof(payload)); return;
+        }
+        if (command == MinimoogMidiCommandRequestSlots && sysexLength == 6u)
+        {
+            uint8_t payload[129] = {userPresetBank.loadedMask}; uint32_t offset = 1;
+            for (uint32_t slot = 0; slot < PresetSlotCount; ++slot) for (uint32_t i = 0; i < 16u; ++i) payload[offset++] = userPresetBank.names[slot][i];
+            sendMinimoogMidi(MinimoogMidiCommandSlotsResponse, payload, offset); return;
+        }
+        if (command == MinimoogMidiCommandRequestUser && sysexLength == 7u)
+        {
+            uint8_t slot = sysexBuffer[6] & 0x07u; if (!(userPresetBank.loadedMask & (1u << slot))) return;
+            uint8_t payload[47] = {slot}; uint32_t offset = 1;
+            for (uint32_t i = 0; i < 16u; ++i) payload[offset++] = userPresetBank.names[slot][i];
+            appendMinimoogVoice(payload, offset, userPresetBank.voices[slot]); sendMinimoogMidi(MinimoogMidiCommandUserResponse, payload, offset); return;
+        }
+        if (command == MinimoogMidiCommandSaveUser && sysexLength == 53u)
+        {
+            uint8_t slot = sysexBuffer[6] & 0x07u; uint32_t offset = 7;
+            for (uint32_t i = 0; i < 16u; ++i) userPresetBank.names[slot][i] = sysexBuffer[offset++] & 0x7Fu;
+            userPresetBank.voices[slot] = readMinimoogVoice(offset); userPresetBank.loadedMask |= 1u << slot; saveUserPresetBank();
+            uint8_t payload[] = {MinimoogMidiCommandSaveUser, slot, userPresetBank.loadedMask}; sendMinimoogMidi(MinimoogMidiCommandAck, payload, sizeof(payload)); return;
+        }
+        if (command == MinimoogMidiCommandRecall && sysexLength == 8u)
+        {
+            uint8_t bank = sysexBuffer[6] & 1u, slot = sysexBuffer[7] & 0x07u;
+            bool recalled = recallPreset(bank, slot, SwitchVal(), KnobVal(Knob::Main), KnobVal(Knob::X), KnobVal(Knob::Y));
+            uint8_t payload[] = {MinimoogMidiCommandRecall, bank, slot, (uint8_t)(recalled ? 1u : 0u)};
+            sendMinimoogMidi(MinimoogMidiCommandAck, payload, sizeof(payload)); return;
+        }
+        if (command == MinimoogMidiCommandDeleteUser && sysexLength == 7u)
+        {
+            uint8_t slot = sysexBuffer[6] & 0x07u; userPresetBank.loadedMask &= ~(1u << slot);
+            for (uint32_t i = 0; i < 16u; ++i) userPresetBank.names[slot][i] = 0;
+            saveUserPresetBank();
+            uint8_t payload[] = {MinimoogMidiCommandDeleteUser, slot, userPresetBank.loadedMask}; sendMinimoogMidi(MinimoogMidiCommandAck, payload, sizeof(payload));
         }
     }
 
@@ -2415,14 +2539,14 @@ private:
         // bank is compile-time data for this pass; user flash slots arrive with
         // the new WebMIDI protocol rather than the C1ZZL3 envelope store.
         static constexpr VoicePreset presets[PresetSlotCount] = {
-            {"Init Voice", 2048, 2048, 0, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048},
-            {"Funk Glide Bass", 2048, 2048, 0, 1638, 2457, 3767, 3194, 0, 0, 720, 1710, 2948, 1393, 2048, 0, 2048},
-            {"Three Saw Bass", 2048, 2644, 0, 1638, 1638, 3522, 3194, 2866, 0, 540, 1536, 1802, 655, 2048, 0, 2048},
-            {"West Coast Whistle", 3072, 4095, 7, 0, 819, 2948, 1720, 0, 0, 3400, 2048, 1475, 1966, 2048, 737, 3276},
-            {"Glide Mod Arp", 2048, 3072, 0, 1638, 4095, 3276, 2252, 0, 0, 1880, 2048, 3030, 1556, 2048, 1269, 2621},
-            {"Slow Brass Lead", 2048, 2048, 11, 1638, 3276, 3358, 2702, 0, 0, 1320, 2048, 2785, 901, 2048, 0, 2048},
-            {"Sub Pulse Bass", 2048, 2048, 0, 2457, 3276, 3440, 2580, 0, 0, 410, 2048, 2130, 491, 2048, 0, 2048},
-            {"Resonant Pulse Lead", 2048, 3072, -5, 4095, 2457, 3030, 2744, 0, 0, 2460, 2048, 3153, 2293, 2048, 328, 2458}
+            {"Init Voice", 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048},
+            {"Funk Glide Bass", 2048, 2048, 1638, 2457, 3767, 3194, 0, 0, 720, 1710, 2948, 1393, 2048, 0, 2048},
+            {"Three Saw Bass", 2048, 2644, 1638, 1638, 3522, 3194, 2866, 0, 540, 1536, 1802, 655, 2048, 0, 2048},
+            {"West Coast Whistle", 3072, 4095, 0, 819, 2948, 1720, 0, 0, 3400, 2048, 1475, 1966, 2048, 737, 3276},
+            {"Glide Mod Arp", 2048, 3072, 1638, 4095, 3276, 2252, 0, 0, 1880, 2048, 3030, 1556, 2048, 1269, 2621},
+            {"Slow Brass Lead", 2048, 2048, 1638, 3276, 3358, 2702, 0, 0, 1320, 2048, 2785, 901, 2048, 0, 2048},
+            {"Sub Pulse Bass", 2048, 2048, 2457, 3276, 3440, 2580, 0, 0, 410, 2048, 2130, 491, 2048, 0, 2048},
+            {"Resonant Pulse Lead", 2048, 3072, 4095, 2457, 3030, 2744, 0, 0, 2460, 2048, 3153, 2293, 2048, 328, 2458}
         };
         return presets[slot & 0x07u];
     }
@@ -2432,7 +2556,7 @@ private:
         const VoicePreset& preset = factoryPreset(slot);
         pitchControl = preset.pitch;
         osc2IntervalControl = preset.osc2Interval;
-        osc2Detune = preset.osc2Detune;
+        osc2Detune = 0;
         waveControl = preset.wave1;
         wave2Control = preset.wave2;
         osc1LevelControl = preset.osc1Level;
@@ -2453,6 +2577,39 @@ private:
     {
         applyFactoryPreset(slot);
         resetMinimoogPagePickup(mode, main, x, y);
+    }
+
+    SavedUserVoice currentUserVoice() const
+    {
+        return {pitchControl, osc2IntervalControl, waveControl, wave2Control,
+            osc1LevelControl, osc2LevelControl, externalOscillatorLevelControl,
+            externalOscillatorRoleControl, filterCutoffControl, oscillatorMixControl,
+            contourControl, filterResonanceControl, externalOscillatorOffset,
+            lfoDepthControl, lfoDestinationControl};
+    }
+
+    void applyUserVoice(const SavedUserVoice& voice)
+    {
+        pitchControl = clamp12(voice.pitch); osc2IntervalControl = clamp12(voice.osc2Interval);
+        waveControl = clamp12(voice.wave1); wave2Control = clamp12(voice.wave2);
+        osc1LevelControl = clamp12(voice.osc1Level); osc2LevelControl = clamp12(voice.osc2Level);
+        externalOscillatorLevelControl = clamp12(voice.externalLevel);
+        externalOscillatorRoleControl = clamp12(voice.externalRole);
+        filterCutoffControl = clamp12(voice.filterCutoff); oscillatorMixControl = clamp12(voice.oscillatorMix);
+        contourControl = clamp12(voice.contour); filterResonanceControl = clamp12(voice.resonance);
+        externalOscillatorOffset = clamp12(voice.externalOffset); lfoDepthControl = clamp12(voice.lfoDepth);
+        lfoDestinationControl = clamp12(voice.lfoDestination); osc2Detune = 0;
+    }
+
+    bool recallPreset(uint8_t bank, uint8_t slot, Switch mode, int32_t main, int32_t x, int32_t y)
+    {
+        slot &= 0x07u;
+        if (bank == 0u) applyFactoryPreset(slot);
+        else if ((userPresetBank.loadedMask & (1u << slot)) != 0u) applyUserVoice(userPresetBank.voices[slot]);
+        else return false;
+        activePresetBank = bank ? 1u : 0u; activePresetSlot = slot;
+        resetMinimoogPagePickup(mode, main, x, y);
+        return true;
     }
 
     void updateStartupPresetSelection(Switch mode, int32_t main)
@@ -2502,7 +2659,7 @@ private:
     {
         if (startupPresetSelectMode)
         {
-            recallFactoryPreset(presetPreviewSlot, Switch::Middle, main, x, y);
+            recallPreset(presetPreviewBank, presetPreviewSlot, Switch::Middle, main, x, y);
             startupPresetSelectMode = false;
             startupSelectChecked = true;
             downHoldSamples = 0;
@@ -2511,7 +2668,7 @@ private:
 
         if (presetSelectMode)
         {
-            recallFactoryPreset(presetPreviewSlot, Switch::Middle, main, x, y);
+            recallPreset(presetPreviewBank, presetPreviewSlot, Switch::Middle, main, x, y);
             presetSelectMode = false;
             downHoldSamples = 0;
             return;
@@ -2529,11 +2686,10 @@ private:
     void updatePresetSelection(int32_t main)
     {
         uint8_t selected =
-            (uint8_t)(((uint32_t)clamp12(main) * PresetSlotCount) >> 12);
-        if (selected >= PresetSlotCount)
-            selected = PresetSlotCount - 1u;
-
-        presetPreviewSlot = selected;
+            (uint8_t)(((uint32_t)clamp12(main) * (PresetSlotCount * 2u)) >> 12);
+        if (selected >= PresetSlotCount * 2u) selected = PresetSlotCount * 2u - 1u;
+        presetPreviewBank = selected >= PresetSlotCount ? 1u : 0u;
+        presetPreviewSlot = selected & 0x07u;
     }
 
     void outputExternalOscillatorPitch(int32_t pitchUnits)
@@ -2652,8 +2808,10 @@ private:
         LedBrightness(2, slot & 4u ? 4095 : 0);
         bool cursorFlash = ((waveformFlashSamples / 6000u) & 1u) != 0u;
         LedBrightness(3, cursorFlash ? 4095 : 0);
-        LedBrightness(4, slot == activePresetSlot ? 4095 : 0);
-        LedBrightness(5, 4095);
+        bool user = presetPreviewBank != 0u;
+        bool available = !user || (userPresetBank.loadedMask & (1u << slot)) != 0u;
+        LedBrightness(4, available && presetPreviewBank == activePresetBank && slot == activePresetSlot ? 4095 : available ? 2048 : 0);
+        LedBrightness(5, user ? 4095 : 0);
     }
 
     void updateSynthLEDs(Switch mode, int32_t pd1, int32_t wave1, int32_t pd2, int32_t wave2)
@@ -3428,6 +3586,46 @@ private:
             XIP_BASE + CustomEnvelopeFlashOffset);
     }
 
+    const SavedUserPresetBank& flashUserPresetBank()
+    {
+        return *reinterpret_cast<const SavedUserPresetBank*>(XIP_BASE + UserPresetFlashOffset);
+    }
+
+    uint32_t checksumUserPresetBank(const SavedUserPresetBank& state)
+    {
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&state);
+        uint32_t checksum = 2166136261u;
+        for (uint32_t i = 0; i < sizeof(state) - sizeof(uint32_t); ++i) { checksum ^= bytes[i]; checksum *= 16777619u; }
+        return checksum;
+    }
+
+    bool isValidUserPresetBank(const SavedUserPresetBank& state)
+    {
+        return state.magic == UserPresetMagic && state.version == UserPresetVersion &&
+            state.size == sizeof(SavedUserPresetBank) && state.checksum == checksumUserPresetBank(state);
+    }
+
+    void loadUserPresetBank()
+    {
+        const SavedUserPresetBank& saved = flashUserPresetBank();
+        if (isValidUserPresetBank(saved)) userPresetBank = saved;
+    }
+
+    void saveUserPresetBank()
+    {
+        userPresetBank.magic = UserPresetMagic; userPresetBank.version = UserPresetVersion;
+        userPresetBank.size = sizeof(SavedUserPresetBank); userPresetBank.checksum = checksumUserPresetBank(userPresetBank);
+        uint8_t page[FLASH_PAGE_SIZE] = {};
+        flash_range_erase(UserPresetFlashOffset, FLASH_SECTOR_SIZE);
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&userPresetBank);
+        for (uint32_t offset = 0; offset < sizeof(userPresetBank); offset += FLASH_PAGE_SIZE)
+        {
+            uint32_t count = sizeof(userPresetBank) - offset; if (count > FLASH_PAGE_SIZE) count = FLASH_PAGE_SIZE;
+            for (uint32_t i = 0; i < FLASH_PAGE_SIZE; ++i) page[i] = i < count ? bytes[offset + i] : 0xFFu;
+            flash_range_program(UserPresetFlashOffset + offset, page, FLASH_PAGE_SIZE);
+        }
+    }
+
     bool isValidSavedState(const SavedPerformanceState& state)
     {
         return
@@ -3974,8 +4172,11 @@ private:
     uint32_t downHoldSamples = 0;
     bool presetSelectMode = false;
     bool startupPresetSelectMode = false;
+    uint8_t presetPreviewBank = 0;
     uint8_t presetPreviewSlot = 0;
+    uint8_t activePresetBank = 0;
     uint8_t activePresetSlot = 0;
+    SavedUserPresetBank userPresetBank = {};
     OscillatorSetupPage oscillatorSetupPage = OscillatorSetupPage::Oscillator1;
     uint32_t waveformFlashSamples = 0;
     int32_t synthMainEntry = 2048;
