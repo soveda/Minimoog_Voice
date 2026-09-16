@@ -23,6 +23,7 @@ static constexpr uint8_t MinimoogMidiCommandSaveUser = 0x07u;
 static constexpr uint8_t MinimoogMidiCommandRecall = 0x08u;
 static constexpr uint8_t MinimoogMidiCommandDeleteUser = 0x09u;
 static constexpr uint8_t MinimoogMidiCommandAck = 0x0Au;
+static constexpr uint8_t MinimoogMidiCommandCaptureUser = 0x0Bu;
 static constexpr uint8_t WebMidiCommandPreview = 0x01u;
 static constexpr uint8_t WebMidiCommandSaveEnvelope = 0x02u;
 static constexpr uint8_t WebMidiCommandSettings = 0x03u;
@@ -152,11 +153,7 @@ public:
         }
         turingMidiNoteActive = false;
 
-        if (pendingMinimoogIdentityResponse)
-        {
-            if (sendMinimoogIdentityResponse())
-                pendingMinimoogIdentityResponse = false;
-        }
+        sendPendingMinimoogResponse();
     }
 
     // =========================================================
@@ -1393,18 +1390,27 @@ private:
         return tud_midi_stream_write(0, frame, length + 8u) == length + 8u;
     }
 
-    bool sendMinimoogIdentityResponse()
+    void queueMinimoogResponse(uint8_t command, const uint8_t* payload, uint32_t length)
     {
-        const uint8_t values[] = {1u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
-        uint8_t start[] = {0xBFu, 119u, MinimoogMidiCommandIdentityResponse};
-        if (tud_midi_stream_write(0, start, sizeof(start)) != sizeof(start)) return false;
-        for (uint8_t value : values)
-        {
-            uint8_t data[] = {0xBFu, 118u, value};
-            if (tud_midi_stream_write(0, data, sizeof(data)) != sizeof(data)) return false;
-        }
-        uint8_t end[] = {0xBFu, 117u, 0u};
-        return tud_midi_stream_write(0, end, sizeof(end)) == sizeof(end);
+        if (length > sizeof(minimoogResponsePayload) || minimoogResponsePending) return;
+        minimoogResponseCommand = command;
+        minimoogResponseLength = length;
+        minimoogResponseIndex = 0;
+        minimoogResponsePhase = 0;
+        for (uint32_t i = 0; i < length; ++i) minimoogResponsePayload[i] = payload[i] & 0x7Fu;
+        minimoogResponsePending = true;
+    }
+
+    void sendPendingMinimoogResponse()
+    {
+        if (!minimoogResponsePending) return;
+        uint8_t controller = minimoogResponsePhase == 0 ? 119u : minimoogResponsePhase == 1 ? 118u : 117u;
+        uint8_t value = minimoogResponsePhase == 0 ? minimoogResponseCommand : minimoogResponsePhase == 1 ? minimoogResponsePayload[minimoogResponseIndex] : 0u;
+        uint8_t message[] = {0xBFu, controller, value};
+        if (tud_midi_stream_write(0, message, sizeof(message)) != sizeof(message)) return;
+        if (minimoogResponsePhase == 0) minimoogResponsePhase = 1;
+        else if (minimoogResponsePhase == 1 && ++minimoogResponseIndex >= minimoogResponseLength) minimoogResponsePhase = 2;
+        else if (minimoogResponsePhase == 2) minimoogResponsePending = false;
     }
 
     void appendMinimoogVoice(uint8_t* payload, uint32_t& offset, const SavedUserVoice& voice)
@@ -1425,42 +1431,50 @@ private:
         uint8_t command = sysexBuffer[5];
         if (command == MinimoogMidiCommandIdentityRequest && sysexLength == 6u)
         {
-            pendingMinimoogIdentityResponse = true;
+            uint8_t payload[] = {1u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
+            queueMinimoogResponse(MinimoogMidiCommandIdentityResponse, payload, sizeof(payload));
             return;
         }
         if (command == MinimoogMidiCommandRequestSlots && sysexLength == 6u)
         {
             uint8_t payload[129] = {userPresetBank.loadedMask}; uint32_t offset = 1;
             for (uint32_t slot = 0; slot < PresetSlotCount; ++slot) for (uint32_t i = 0; i < 16u; ++i) payload[offset++] = userPresetBank.names[slot][i];
-            sendMinimoogMidi(MinimoogMidiCommandSlotsResponse, payload, offset); return;
+            queueMinimoogResponse(MinimoogMidiCommandSlotsResponse, payload, offset); return;
         }
         if (command == MinimoogMidiCommandRequestUser && sysexLength == 7u)
         {
             uint8_t slot = sysexBuffer[6] & 0x07u; if (!(userPresetBank.loadedMask & (1u << slot))) return;
             uint8_t payload[47] = {slot}; uint32_t offset = 1;
             for (uint32_t i = 0; i < 16u; ++i) payload[offset++] = userPresetBank.names[slot][i];
-            appendMinimoogVoice(payload, offset, userPresetBank.voices[slot]); sendMinimoogMidi(MinimoogMidiCommandUserResponse, payload, offset); return;
+            appendMinimoogVoice(payload, offset, userPresetBank.voices[slot]); queueMinimoogResponse(MinimoogMidiCommandUserResponse, payload, offset); return;
         }
         if (command == MinimoogMidiCommandSaveUser && sysexLength == 53u)
         {
             uint8_t slot = sysexBuffer[6] & 0x07u; uint32_t offset = 7;
             for (uint32_t i = 0; i < 16u; ++i) userPresetBank.names[slot][i] = sysexBuffer[offset++] & 0x7Fu;
             userPresetBank.voices[slot] = readMinimoogVoice(offset); userPresetBank.loadedMask |= 1u << slot; saveUserPresetBank();
-            uint8_t payload[] = {MinimoogMidiCommandSaveUser, slot, userPresetBank.loadedMask}; sendMinimoogMidi(MinimoogMidiCommandAck, payload, sizeof(payload)); return;
+            uint8_t payload[] = {MinimoogMidiCommandSaveUser, slot, userPresetBank.loadedMask}; queueMinimoogResponse(MinimoogMidiCommandAck, payload, sizeof(payload)); return;
         }
         if (command == MinimoogMidiCommandRecall && sysexLength == 8u)
         {
             uint8_t bank = sysexBuffer[6] & 1u, slot = sysexBuffer[7] & 0x07u;
             bool recalled = recallPreset(bank, slot, SwitchVal(), KnobVal(Knob::Main), KnobVal(Knob::X), KnobVal(Knob::Y));
             uint8_t payload[] = {MinimoogMidiCommandRecall, bank, slot, (uint8_t)(recalled ? 1u : 0u)};
-            sendMinimoogMidi(MinimoogMidiCommandAck, payload, sizeof(payload)); return;
+            queueMinimoogResponse(MinimoogMidiCommandAck, payload, sizeof(payload)); return;
         }
         if (command == MinimoogMidiCommandDeleteUser && sysexLength == 7u)
         {
             uint8_t slot = sysexBuffer[6] & 0x07u; userPresetBank.loadedMask &= ~(1u << slot);
             for (uint32_t i = 0; i < 16u; ++i) userPresetBank.names[slot][i] = 0;
             saveUserPresetBank();
-            uint8_t payload[] = {MinimoogMidiCommandDeleteUser, slot, userPresetBank.loadedMask}; sendMinimoogMidi(MinimoogMidiCommandAck, payload, sizeof(payload));
+            uint8_t payload[] = {MinimoogMidiCommandDeleteUser, slot, userPresetBank.loadedMask}; queueMinimoogResponse(MinimoogMidiCommandAck, payload, sizeof(payload)); return;
+        }
+        if (command == MinimoogMidiCommandCaptureUser && sysexLength == 23u)
+        {
+            uint8_t slot = sysexBuffer[6] & 0x07u;
+            for (uint32_t i = 0; i < 16u; ++i) userPresetBank.names[slot][i] = sysexBuffer[7u + i] & 0x7Fu;
+            userPresetBank.voices[slot] = currentUserVoice(); userPresetBank.loadedMask |= 1u << slot; saveUserPresetBank();
+            uint8_t payload[] = {MinimoogMidiCommandCaptureUser, slot, userPresetBank.loadedMask}; queueMinimoogResponse(MinimoogMidiCommandAck, payload, sizeof(payload));
         }
     }
 
@@ -4232,7 +4246,12 @@ private:
     volatile uint8_t pendingMidiNote = 60;
     volatile uint8_t pendingMidiVelocity = 100;
     volatile bool pendingMidiNoteOn = false;
-    volatile bool pendingMinimoogIdentityResponse = false;
+    bool minimoogResponsePending = false;
+    uint8_t minimoogResponseCommand = 0;
+    uint8_t minimoogResponsePayload[129] = {};
+    uint32_t minimoogResponseLength = 0;
+    uint32_t minimoogResponseIndex = 0;
+    uint8_t minimoogResponsePhase = 0;
     volatile bool pendingTuringMidiNoteOn = false;
     volatile bool pendingTuringMidiNoteOff = false;
     uint8_t turingMidiLastNote = 60;
