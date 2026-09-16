@@ -4343,8 +4343,12 @@ void usbMidiWorker()
             usbMidiDiagnosticMounted = tud_midi_mounted();
             if (usbMidiDiagnosticMounted && (uint32_t)(now - lastUsbDiagnosticAt) >= 1000000u)
             {
-                uint8_t frame[] = {0xF0u, 0x7Du, 0x4Du, 0x4Eu, 0x56u, 0x31u, 0x7Eu, usbDiagnosticCount++, 0xF7u};
-                if (tud_midi_stream_write(0, frame, sizeof(frame)) == sizeof(frame))
+                uint8_t packet1[] = {0x04u, 0xF0u, 0x7Du, 0x4Du};
+                uint8_t packet2[] = {0x04u, 0x4Eu, 0x56u, 0x31u};
+                uint8_t packet3[] = {0x06u, 0x7Eu, usbDiagnosticCount++, 0xF7u};
+                if (tud_midi_packet_write(packet1) &&
+                    tud_midi_packet_write(packet2) &&
+                    tud_midi_packet_write(packet3))
                 {
                     usbMidiDiagnosticWriteCount++;
                     lastUsbDiagnosticAt = now;
