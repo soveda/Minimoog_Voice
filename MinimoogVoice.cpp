@@ -347,7 +347,9 @@ private:
     static constexpr uint8_t MidiCcNoiseAmount = 26;
     static constexpr uint8_t MidiCcOsc1Pd = 27;
     static constexpr int32_t PitchUnitsPerOctave = 4096;
-    static constexpr int32_t MainPitchOctaves = 5;
+    static constexpr int32_t MainPitchOctaves = 4;
+    static constexpr int32_t MainPitchCentreUnits = PitchUnitsPerOctave; // C3 at noon.
+    static constexpr int32_t PitchBaseMidiNote = 36; // C2, matching C2PhaseIncrement.
     static constexpr int32_t PitchInputCountsPerVolt = 341;
     static constexpr int32_t MinPitchUnits = -2 * PitchUnitsPerOctave;
     static constexpr int32_t MaxPitchUnits = 7 * PitchUnitsPerOctave;
@@ -2538,7 +2540,8 @@ private:
     {
         int32_t offset =
             ((externalOscillatorOffset - 2048) * 2 * PitchUnitsPerOctave) >> 12;
-        int32_t note = 60 + ((pitchUnits + offset) * 12) / PitchUnitsPerOctave;
+        int32_t note = PitchBaseMidiNote +
+            ((pitchUnits + offset) * 12) / PitchUnitsPerOctave;
         if (note < 0)
             note = 0;
         if (note > 127)
@@ -3783,8 +3786,8 @@ private:
 
     int32_t pitchUnits(int32_t knob, int32_t pitchInput)
     {
-        int32_t mainUnits =
-            (clamp12(knob) * MainPitchOctaves * PitchUnitsPerOctave) / 4095;
+        int32_t mainUnits = MainPitchCentreUnits +
+            ((clamp12(knob) - 2048) * MainPitchOctaves * PitchUnitsPerOctave) / 4096;
         int32_t inputUnits =
             (pitchInput * PitchUnitsPerOctave) / PitchInputCountsPerVolt;
 

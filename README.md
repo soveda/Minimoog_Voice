@@ -13,7 +13,8 @@ pitch/CV loop and external-LFO modulation.
 - A Down press and release within half a second cycles the selected setup page:
   OSC 1, OSC 2, then external OSC 3. The selection is shown when the switch is
   moved Up.
-- Switch up, OSC 1 page: Main range/pitch, X level, Y waveform.
+- Switch up, OSC 1 page: Main pitch, X level, Y waveform. Main spans roughly
+  C1--C5, with C3 exactly at 12 o'clock.
 - Switch up, OSC 2 page: Main interval/range, X level, Y waveform. Fine tune
   remains at its current value until it moves to the Web UI.
 - Switch up, external OSC 3 page: Main `CV Out 1` pitch offset, X audio-return
