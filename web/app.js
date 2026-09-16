@@ -1,13 +1,13 @@
 const root = document.documentElement;
 const storageKey = "minimoog-voice-experimental-presets-v1";
-const midi = { access: null, input: null, output: null, log: [] };
+const midi = { access: null, input: null, output: null, log: [], responseCommand: null, responseValues: [] };
 const preset = { baseline: null, active: null, current: null, userSlots: [] };
 const midiElements = {
   connect: document.querySelector("#midiConnect"), refresh: document.querySelector("#midiRefresh"),
   input: document.querySelector("#midiInput"), output: document.querySelector("#midiOutput"),
   status: document.querySelector("#midiStatus"), log: document.querySelector("#midiLog"),
   clearLog: document.querySelector("#midiClearLog"), showAll: document.querySelector("#midiShowAll"),
-  sysex: document.querySelector("#midiSysex"), sendSysex: document.querySelector("#midiSendSysex")
+  sysex: document.querySelector("#midiSysex"), sendSysex: document.querySelector("#midiSendSysex"), probe: document.querySelector("#midiProbe")
 };
 const presetElements = Object.fromEntries(["name:presetName", "slot:userSlot", "status:presetStatus", "factory:factoryPresets", "user:userPresets", "new:presetNew", "duplicate:presetDuplicate", "save:presetSave", "reset:presetReset"].map((pair) => { const [key, id] = pair.split(":"); return [key, document.querySelector(`#${id}`)]; }));
 
@@ -66,7 +66,8 @@ function renderMidiLog() { midiElements.log.textContent = midi.log.length ? midi
 function logMidi(direction, data) { const sysex = data[0] === 0xf0; if (!sysex && !midiElements.showAll.checked) return; const bytes = Array.from(data, (byte) => byte.toString(16).padStart(2, "0").toUpperCase()).join(" "); midi.log.push(`${new Date().toLocaleTimeString()} ${direction} ${sysex ? "SysEx" : "MIDI"}: ${bytes}`); if (midi.log.length > 200) midi.log.shift(); renderMidiLog(); }
 function populate(select, ports, selected) { const previous = selected?.id || select.value; select.replaceChildren(); if (!ports.length) { select.add(new Option("No ports available", "")); return null; } ports.forEach((port) => select.add(new Option(midiPortName(port), port.id))); const preferred = ports.find((port) => /minimoog voice/i.test(midiPortName(port))); select.value = ports.some((port) => port.id === previous) ? previous : (preferred || ports[0]).id; return ports.find((port) => port.id === select.value) || null; }
 function detachMidiInput() { if (!midi.access) return; midi.access.inputs.forEach((input) => { input.onmidimessage = null; }); }
-function monitorMidiInput(input) { input.onmidimessage = (event) => logMidi("IN", event.data); }
+function handleCardResponse(data) { if (data[0] !== 0xbf) return; if (data[1] === 119) { midi.responseCommand = data[2]; midi.responseValues = []; return; } if (data[1] === 118 && midi.responseCommand !== null) { midi.responseValues.push(data[2]); return; } if (data[1] !== 117 || midi.responseCommand !== 2 || midi.responseValues.length !== 4) return; const [version, userMask, bank, slot] = midi.responseValues; midi.responseCommand = null; setMidiStatus(`Card reply: MNV1 v${version} | User slots: ${userMask.toString(2).padStart(8, "0")} | Active: ${bank ? "User" : "Factory"} ${slot + 1}`); }
+function monitorMidiInput(input) { input.onmidimessage = (event) => { logMidi("IN", event.data); handleCardResponse(event.data); }; }
 function selectMidiPorts() { if (!midi.access) return; const input = populate(midiElements.input, [...midi.access.inputs.values()], midi.input); const output = populate(midiElements.output, [...midi.access.outputs.values()], midi.output); detachMidiInput(); midi.access.inputs.forEach(monitorMidiInput); midi.input = input || null; midi.output = output || null; if (!midi.input && !midi.output) { setMidiStatus("No MIDI ports found"); return; } const inputState = midi.input ? `${midiPortName(midi.input)} (${midi.input.connection || "unknown"})` : "none"; const outputState = midi.output ? midiPortName(midi.output) : "none"; const sysexState = midi.access.sysexEnabled === false ? "blocked" : "enabled"; setMidiStatus(`Voice: ${outputState} | Monitor input: ${inputState} | SysEx: ${sysexState}`); }
 async function openMidiPort(port) { if (!port || typeof port.open !== "function" || port.connection === "open") return; await port.open(); }
 async function prepareMidiPorts() { if (!midi.access) return; const ports = [...midi.access.inputs.values(), ...midi.access.outputs.values()]; await Promise.allSettled(ports.map(openMidiPort)); selectMidiPorts(); }
@@ -77,6 +78,7 @@ midiElements.input.addEventListener("change", () => { if (!midi.access) return; 
 midiElements.output.addEventListener("change", () => { if (!midi.access) return; midi.output = midi.access.outputs.get(midiElements.output.value) || null; selectMidiPorts(); });
 midiElements.clearLog.addEventListener("click", () => { midi.log = []; renderMidiLog(); });
 midiElements.sendSysex.addEventListener("click", () => { try { if (!midi.output) throw new Error("Choose a MIDI output first"); const bytes = parseSysEx(midiElements.sysex.value); midi.output.send(bytes); logMidi("OUT", bytes); } catch (error) { setMidiStatus(error.message); } });
+midiElements.probe.addEventListener("click", () => { try { if (!midi.output) throw new Error("Choose a MIDI output first"); const bytes = [0xf0, 0x7d, 0x4d, 0x4e, 0x56, 0x31, 0x01, 0xf7]; midi.output.send(bytes); logMidi("OUT", bytes); setMidiStatus("Waiting for card reply..."); } catch (error) { setMidiStatus(error.message); } });
 
 setTheme(localStorage.getItem("minimoog-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 preset.baseline = readControls(); preset.userSlots = loadUserSlots(); activate(factoryVoices()[0], { kind: "factory", index: 0 });

@@ -72,8 +72,6 @@ constexpr std::array<uint16_t, 577> makeLadderReciprocalQ15Table()
 
 constexpr auto LadderReciprocalQ15Table = makeLadderReciprocalQ15Table();
 
-static volatile bool usbMidiDiagnosticMounted = false;
-static volatile uint8_t usbMidiDiagnosticWriteCount = 0;
 
 class MinimoogVoice : public ComputerCard
 {
@@ -156,8 +154,7 @@ public:
 
         if (pendingMinimoogIdentityResponse)
         {
-            uint8_t payload[] = {1u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
-            if (sendMinimoogMidi(MinimoogMidiCommandIdentityResponse, payload, sizeof(payload)))
+            if (sendMinimoogIdentityResponse())
                 pendingMinimoogIdentityResponse = false;
         }
     }
@@ -260,12 +257,6 @@ public:
 
             waveformFlashSamples++;
             updateMinimoogLeds(mode);
-            LedBrightness(0, usbMidiDiagnosticMounted ? 4095 : 0);
-            LedBrightness(1, usbMidiDiagnosticWriteCount & 1u ? 4095 : 0);
-            LedOff(2);
-            LedOff(3);
-            LedOff(4);
-            LedOff(5);
         }
     }
 
@@ -1400,6 +1391,20 @@ private:
         for (uint32_t i = 0; i < length; ++i) frame[7u + i] = payload[i] & 0x7Fu;
         frame[7u + length] = 0xF7u;
         return tud_midi_stream_write(0, frame, length + 8u) == length + 8u;
+    }
+
+    bool sendMinimoogIdentityResponse()
+    {
+        const uint8_t values[] = {1u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
+        uint8_t start[] = {0xBFu, 119u, MinimoogMidiCommandIdentityResponse};
+        if (tud_midi_stream_write(0, start, sizeof(start)) != sizeof(start)) return false;
+        for (uint8_t value : values)
+        {
+            uint8_t data[] = {0xBFu, 118u, value};
+            if (tud_midi_stream_write(0, data, sizeof(data)) != sizeof(data)) return false;
+        }
+        uint8_t end[] = {0xBFu, 117u, 0u};
+        return tud_midi_stream_write(0, end, sizeof(end)) == sizeof(end);
     }
 
     void appendMinimoogVoice(uint8_t* payload, uint32_t& offset, const SavedUserVoice& voice)
@@ -4319,8 +4324,6 @@ void usbMidiWorker()
 {
     sleep_ms(100);
     bool hostMode = card.ShouldBootUsbHost();
-    uint32_t lastUsbDiagnosticAt = 0;
-    uint8_t usbDiagnosticCount = 0;
 
     if (hostMode)
         tuh_init(0);
@@ -4336,26 +4339,6 @@ void usbMidiWorker()
         else
         {
             tud_task();
-
-            // Temporary transport diagnostic: confirms that device-to-host MIDI
-            // works even when the browser has not sent a request.
-            uint32_t now = time_us_32();
-            usbMidiDiagnosticMounted = tud_midi_mounted();
-            if (usbMidiDiagnosticMounted && (uint32_t)(now - lastUsbDiagnosticAt) >= 1000000u)
-            {
-                bool noteOn = (usbDiagnosticCount++ & 1u) == 0u;
-                uint8_t packet[] = {
-                    (uint8_t)(noteOn ? 0x09u : 0x08u),
-                    (uint8_t)(noteOn ? 0x90u : 0x80u),
-                    60u,
-                    (uint8_t)(noteOn ? 1u : 0u)
-                };
-                if (tud_midi_packet_write(packet))
-                {
-                    usbMidiDiagnosticWriteCount++;
-                    lastUsbDiagnosticAt = now;
-                }
-            }
             card.SendPendingUsbMidiOutput();
 
             uint8_t bytes[64];
