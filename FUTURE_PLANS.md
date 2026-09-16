@@ -128,9 +128,16 @@ intent, not behaviour already promised by the current firmware.
   preset, rename, duplicate/new, and overwrite/delete confirmation.
 - Provide eight fixed factory presets and eight named custom card slots. A
   card save must persist the custom-slot name and complete Minimoog Voice
-  state together: oscillator waveforms and tuning, mixer levels and drive,
+  state together: oscillator waveforms and intervals, mixer levels and drive,
   filter, contours, modulation, keyboard tracking, output roles, and other
   audible routing choices.
+- Make the preset selector a two-bank C1ZZL3-style display: LEDs 0--2 encode
+  index `0--7`; LED 5 off means factory and LED 5 on means user. The Main knob
+  must select all sixteen positions, while an empty user slot is visibly
+  unavailable and can never overwrite a factory voice.
+- Remove free OSC 2 fine tune from the Web UI and compact voice record. Keep
+  it fixed at zero for deterministic digital-oscillator tuning; revisit only
+  as a deliberate discrete unison/detune mode if it proves musically useful.
 - Clearly distinguish browser-only drafts, RAM recalls, and presets persisted
   to card flash. Use the same name encoding and length limit in browser and
   firmware so recalled names are reliable.
@@ -154,7 +161,7 @@ intent, not behaviour already promised by the current firmware.
   solo voice with filter emphasis. These ensure the factory bank exercises the
   full intended waveform set.
 - Match the useful sound-design characteristics rather than claim exact artist
-  reproductions: oscillator ranges and detune, glide, mixer weight, contour
+  reproductions: oscillator ranges and intervals, glide, mixer weight, contour
   shape, filter emphasis, keyboard tracking, and LFO/modulation assignment.
 - Finalise and level-match the factory bank only after the LUT oscillator,
   proper contour, keyboard tracking, and external oscillator/LFO features are
