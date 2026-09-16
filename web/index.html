@@ -23,6 +23,33 @@
       </div>
     </header>
 
+    <section class="midi-tools" aria-label="MIDI connection and developer monitor">
+      <div class="midi-tools-head">
+        <div>
+          <span class="eyebrow">WebMIDI</span>
+          <h2>Connected Voice</h2>
+        </div>
+        <output id="midiStatus" class="midi-status" aria-live="polite">Not connected</output>
+      </div>
+      <div class="midi-ports">
+        <label>Input<select id="midiInput"><option>No MIDI access</option></select></label>
+        <label>Output<select id="midiOutput"><option>No MIDI access</option></select></label>
+        <button id="midiRefresh" type="button">Refresh ports</button>
+      </div>
+      <details class="developer-tools">
+        <summary>Developer monitor</summary>
+        <div class="developer-actions">
+          <button id="midiClearLog" type="button">Clear log</button>
+          <label class="midi-filter"><input id="midiShowAll" type="checkbox"> Show all MIDI</label>
+        </div>
+        <pre id="midiLog" class="midi-log" aria-live="polite">Waiting for MIDI traffic.</pre>
+        <div class="sysex-send">
+          <label>Raw SysEx<input id="midiSysex" type="text" spellcheck="false" placeholder="F0 7D ... F7"></label>
+          <button id="midiSendSysex" type="button">Send</button>
+        </div>
+      </details>
+    </section>
+
     <section class="panel-map" aria-label="Physical panel mapping">
       <div><span>Middle</span><strong>Cutoff · Oscillator mix · Contour</strong></div>
       <div><span>Up</span><strong>Selected OSC: Range · Level · Wave / Role</strong></div>
@@ -132,32 +159,6 @@
       </fieldset>
     </section>
 
-    <section class="midi-tools" aria-label="MIDI connection and developer monitor">
-      <div class="midi-tools-head">
-        <div>
-          <span class="eyebrow">WebMIDI</span>
-          <h2>Connection</h2>
-        </div>
-        <output id="midiStatus" class="midi-status" aria-live="polite">Not connected</output>
-      </div>
-      <div class="midi-ports">
-        <label>Input<select id="midiInput"><option>No MIDI access</option></select></label>
-        <label>Output<select id="midiOutput"><option>No MIDI access</option></select></label>
-        <button id="midiRefresh" type="button">Refresh ports</button>
-      </div>
-      <details class="developer-tools">
-        <summary>Developer monitor</summary>
-        <div class="developer-actions">
-          <button id="midiClearLog" type="button">Clear log</button>
-          <label class="midi-filter"><input id="midiShowAll" type="checkbox"> Show all MIDI</label>
-        </div>
-        <pre id="midiLog" class="midi-log" aria-live="polite">Waiting for MIDI traffic.</pre>
-        <div class="sysex-send">
-          <label>Raw SysEx<input id="midiSysex" type="text" spellcheck="false" placeholder="F0 7D ... F7"></label>
-          <button id="midiSendSysex" type="button">Send</button>
-        </div>
-      </details>
-    </section>
   </main>
   <script src="app.js"></script>
 </body>
