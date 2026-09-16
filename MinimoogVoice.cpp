@@ -153,9 +153,9 @@ public:
 
         if (pendingMinimoogIdentityResponse)
         {
-            pendingMinimoogIdentityResponse = false;
             uint8_t payload[] = {1u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
-            sendMinimoogMidi(MinimoogMidiCommandIdentityResponse, payload, sizeof(payload));
+            if (sendMinimoogMidi(MinimoogMidiCommandIdentityResponse, payload, sizeof(payload)))
+                pendingMinimoogIdentityResponse = false;
         }
     }
 
@@ -1384,13 +1384,13 @@ private:
         return true;
     }
 
-    void sendMinimoogMidi(uint8_t command, const uint8_t* payload, uint32_t length)
+    bool sendMinimoogMidi(uint8_t command, const uint8_t* payload, uint32_t length)
     {
         uint8_t frame[192] = {0xF0u, WebMidiManufacturer, MinimoogMidiId[0], MinimoogMidiId[1], MinimoogMidiId[2], MinimoogMidiId[3], command};
-        if (length > sizeof(frame) - 8u) return;
+        if (length > sizeof(frame) - 8u) return false;
         for (uint32_t i = 0; i < length; ++i) frame[7u + i] = payload[i] & 0x7Fu;
         frame[7u + length] = 0xF7u;
-        tud_midi_stream_write(0, frame, length + 8u);
+        return tud_midi_stream_write(0, frame, length + 8u) == length + 8u;
     }
 
     void appendMinimoogVoice(uint8_t* payload, uint32_t& offset, const SavedUserVoice& voice)
