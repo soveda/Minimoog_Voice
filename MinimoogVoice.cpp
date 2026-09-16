@@ -150,6 +150,13 @@ public:
             tud_midi_stream_write(0, off, sizeof(off));
         }
         turingMidiNoteActive = false;
+
+        if (pendingMinimoogIdentityResponse)
+        {
+            pendingMinimoogIdentityResponse = false;
+            uint8_t payload[] = {1u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
+            sendMinimoogMidi(MinimoogMidiCommandIdentityResponse, payload, sizeof(payload));
+        }
     }
 
     // =========================================================
@@ -1404,8 +1411,8 @@ private:
         uint8_t command = sysexBuffer[5];
         if (command == MinimoogMidiCommandIdentityRequest && sysexLength == 6u)
         {
-            uint8_t payload[] = {1u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
-            sendMinimoogMidi(MinimoogMidiCommandIdentityResponse, payload, sizeof(payload)); return;
+            pendingMinimoogIdentityResponse = true;
+            return;
         }
         if (command == MinimoogMidiCommandRequestSlots && sysexLength == 6u)
         {
@@ -4211,6 +4218,7 @@ private:
     volatile uint8_t pendingMidiNote = 60;
     volatile uint8_t pendingMidiVelocity = 100;
     volatile bool pendingMidiNoteOn = false;
+    volatile bool pendingMinimoogIdentityResponse = false;
     volatile bool pendingTuringMidiNoteOn = false;
     volatile bool pendingTuringMidiNoteOff = false;
     uint8_t turingMidiLastNote = 60;
