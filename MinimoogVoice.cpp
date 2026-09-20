@@ -25,6 +25,8 @@ static constexpr uint8_t MinimoogMidiCommandDeleteUser = 0x09u;
 static constexpr uint8_t MinimoogMidiCommandAck = 0x0Au;
 static constexpr uint8_t MinimoogMidiCommandCaptureUser = 0x0Bu;
 static constexpr uint8_t MinimoogMidiCommandSetVoice = 0x0Cu;
+static constexpr uint8_t MinimoogMidiCommandRequestVoice = 0x0Du;
+static constexpr uint8_t MinimoogMidiCommandVoiceResponse = 0x0Eu;
 static constexpr uint8_t WebMidiCommandPreview = 0x01u;
 static constexpr uint8_t WebMidiCommandSaveEnvelope = 0x02u;
 static constexpr uint8_t WebMidiCommandSettings = 0x03u;
@@ -1484,6 +1486,13 @@ private:
             applyUserVoice(readMinimoogVoice(offset));
             resetMinimoogPagePickup(SwitchVal(), KnobVal(Knob::Main), KnobVal(Knob::X), KnobVal(Knob::Y));
             uint8_t payload[] = {MinimoogMidiCommandSetVoice, 0u, userPresetBank.loadedMask}; queueMinimoogResponse(MinimoogMidiCommandAck, payload, sizeof(payload));
+            return;
+        }
+        if (command == MinimoogMidiCommandRequestVoice && sysexLength == 6u)
+        {
+            uint8_t payload[30] = {}; uint32_t offset = 0;
+            appendMinimoogVoice(payload, offset, currentUserVoice());
+            queueMinimoogResponse(MinimoogMidiCommandVoiceResponse, payload, offset);
         }
     }
 
