@@ -424,13 +424,16 @@ private:
     static constexpr uint32_t UserPresetFlashOffset =
         CustomEnvelopeFlashOffset - FLASH_SECTOR_SIZE;
     static constexpr uint32_t UserPresetMagic = 0x4D4E5650u; // MNVP
-    static constexpr uint16_t UserPresetVersion = 1u;
+    static constexpr uint16_t UserPresetVersion = 2u;
     static constexpr uint32_t SaveHoldSamples = 384000u;
     static constexpr uint32_t SaveConfirmSamples = 48000u;
     static constexpr uint32_t PresetWarningSamples = 192000u; // Four seconds.
     static constexpr uint32_t PresetSelectHoldSamples = 240000u; // Five seconds.
     static constexpr uint32_t ShortSwitchPressSamples = 24000u; // Half a second.
     static constexpr uint8_t PresetSlotCount = 8u;
+    static constexpr uint32_t AdsPhaseLimit = 1u << 24;
+    static constexpr uint32_t AdsMaximumSamples = 240000u; // Five seconds at 48 kHz.
+    static constexpr uint32_t AdsReleaseIncrement = AdsPhaseLimit / 960u; // 20 ms de-click release.
 
     // This compact record contains every currently audible Minimoog voice
     // control. It is intentionally separate from the inherited C1ZZL3
@@ -474,7 +477,23 @@ private:
         int32_t lfoDestination;
     };
 
-    struct SavedUserPresetBank
+    // The Minimoog panel offers ADS rather than ADSR. Release is deliberately
+    // fixed in the audio engine, while these seven controls define the two
+    // independently stored amplifier and filter contours.
+    struct SavedUserContour
+    {
+        int32_t ampAttack;
+        int32_t ampDecay;
+        int32_t ampSustain;
+        int32_t filterAttack;
+        int32_t filterDecay;
+        int32_t filterSustain;
+        int32_t filterKeyboardTracking;
+    };
+
+    // Version 1 did not contain contour controls. Keep its exact layout so
+    // voices saved by the passed Web-sync firmware migrate on first boot.
+    struct SavedUserPresetBankV1
     {
         uint32_t magic;
         uint16_t version;
@@ -484,6 +503,31 @@ private:
         uint8_t names[PresetSlotCount][16];
         SavedUserVoice voices[PresetSlotCount];
         uint32_t checksum;
+    };
+
+    struct SavedUserPresetBank
+    {
+        uint32_t magic;
+        uint16_t version;
+        uint16_t size;
+        uint8_t loadedMask;
+        uint8_t reserved[7];
+        uint8_t names[PresetSlotCount][16];
+        SavedUserVoice voices[PresetSlotCount];
+        SavedUserContour contours[PresetSlotCount];
+        uint32_t checksum;
+    };
+
+    enum class AdsStage : uint8_t { Attack, Decay, Sustain, Release };
+
+    struct AdsEnvelopeState
+    {
+        int32_t level = 0;
+        int32_t startLevel = 0;
+        uint32_t phase = 0;
+        uint32_t attackIncrement = 1;
+        uint32_t decayIncrement = 1;
+        AdsStage stage = AdsStage::Release;
     };
 
     struct SavedPerformanceState
