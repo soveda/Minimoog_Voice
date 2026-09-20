@@ -7,7 +7,7 @@ const midiElements = {
   input: document.querySelector("#midiInput"), output: document.querySelector("#midiOutput"),
   status: document.querySelector("#midiStatus"), log: document.querySelector("#midiLog"),
   clearLog: document.querySelector("#midiClearLog"), showAll: document.querySelector("#midiShowAll"),
-  sysex: document.querySelector("#midiSysex"), sendSysex: document.querySelector("#midiSendSysex"), probe: document.querySelector("#midiProbe")
+  sysex: document.querySelector("#midiSysex"), sendSysex: document.querySelector("#midiSendSysex"), probe: document.querySelector("#midiProbe"), apply: document.querySelector("#midiApply")
 };
 const presetElements = Object.fromEntries(["name:presetName", "slot:userSlot", "status:presetStatus", "factory:factoryPresets", "user:userPresets", "new:presetNew", "duplicate:presetDuplicate", "save:presetSave", "delete:presetDelete", "reset:presetReset"].map((pair) => { const [key, id] = pair.split(":"); return [key, document.querySelector(`#${id}`)]; }));
 
@@ -43,6 +43,10 @@ function activate(sound, active) { preset.active = { ...active, sound: clone(sou
 function button(name, selected, action, empty = false) { const element = document.createElement("button"); element.type = "button"; element.className = `preset-button${selected ? " is-active" : ""}${empty ? " is-empty" : ""}`; element.textContent = name; element.addEventListener("click", action); return element; }
 function sendCardCommand(command, payload = []) { if (!midi.output) return false; const bytes = [0xf0, 0x7d, 0x4d, 0x4e, 0x56, 0x31, command, ...payload.map((value) => value & 0x7f), 0xf7]; midi.output.send(bytes); logMidi("OUT", bytes); return true; }
 function encodeName(name) { return Array.from({ length: 16 }, (_, index) => name.charCodeAt(index) || 0); }
+function control(value, minimum, maximum) { return Math.round(Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum))) * 4095); }
+function selectedIndex(path) { const input = document.querySelector(`[data-param="${path}"]`); return [...input.options].indexOf(input.selectedOptions[0]); }
+function append14(values, value) { values.push(value & 0x7f, (value >> 7) & 0x7f); }
+function sendCurrentVoice() { const values = []; const sound = readControls(); const range = { "32'": 0, "16'": 1024, "8'": 2048, "4'": 3072, "2'": 4095 }; const voice = [range[sound.osc1.range] ?? 2048, control(Number(sound.osc2.interval), -24, 24), control(selectedIndex("osc1.waveform"), 0, 5), control(selectedIndex("osc2.waveform"), 0, 5), control(Number(sound.mixer.osc1Level), 0, 100), control(Number(sound.mixer.osc2Level), 0, 100), control(Number(sound.mixer.osc3Return), 0, 100), control(selectedIndex("osc3.syncMode"), 0, 2), control(Number(sound.filter.cutoff), 20, 12000), control(Number(sound.mixer.drive), 0, 100), control(Number(sound.filter.contour), 0, 100), control(Number(sound.filter.emphasis), 0, 100), control(Number(sound.osc3.offset), -24, 24), control(Number(sound.modulation.depth), 0, 100), control(Number(sound.modulation.blend), 0, 100)]; voice.forEach((value) => append14(values, value)); if (sendCardCommand(12, values)) setMidiStatus("Sending voice to card..."); }
 function renderPresetBank() {
   const factory = factoryVoices();
   presetElements.factory.replaceChildren(...factory.map((sound, index) => button(sound.name, preset.active?.kind === "factory" && preset.active.index === index, () => { sendCardCommand(8, [0, index]); activate(sound, { kind: "factory", index }); })));
@@ -83,6 +87,7 @@ midiElements.output.addEventListener("change", () => { if (!midi.access) return;
 midiElements.clearLog.addEventListener("click", () => { midi.log = []; renderMidiLog(); });
 midiElements.sendSysex.addEventListener("click", () => { try { if (!midi.output) throw new Error("Choose a MIDI output first"); const bytes = parseSysEx(midiElements.sysex.value); midi.output.send(bytes); logMidi("OUT", bytes); } catch (error) { setMidiStatus(error.message); } });
 midiElements.probe.addEventListener("click", () => { try { if (!midi.output) throw new Error("Choose a MIDI output first"); const bytes = [0xf0, 0x7d, 0x4d, 0x4e, 0x56, 0x31, 0x01, 0xf7]; midi.output.send(bytes); logMidi("OUT", bytes); setMidiStatus("Waiting for card reply..."); } catch (error) { setMidiStatus(error.message); } });
+midiElements.apply.addEventListener("click", sendCurrentVoice);
 
 setTheme(localStorage.getItem("minimoog-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 preset.baseline = readControls(); preset.userSlots = loadUserSlots(); activate(factoryVoices()[0], { kind: "factory", index: 0 });
