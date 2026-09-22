@@ -64,12 +64,10 @@ pitch/CV loop and external-LFO modulation.
 | Down held 4 seconds | LED 4 flashes as a warning. |
 | Startup Down hold or Down held 5 seconds | LEDs 0-2 show the slot index `0-7`; LED 3 flashes as the selector cursor; LED 4 is bright for the active preset and half bright for another selectable preset. LED 5 off is factory; LED 5 on is user. Empty user slots are skipped. At startup, release the initial Down hold to arm selection, then press and release Down again to load and exit. |
 
-`Audio Out 1` uses a four-pole, resonant ladder filter. The Web UI Mode control
-selects its established low-pass output or a complementary high-pass output.
+`Audio Out 1` now uses a fixed four-pole, resonant ladder-filter first pass.
 It has a division-free feedback solve and soft transistor-style stage shaping.
 The Web UI exposes its cutoff, emphasis, contour, filter ADS, and Model D-style
-None/1/3/2/3/Full keyboard tracking, plus independent oscillator and filter
-modulation enables. Tracking uses the current MIDI or pitch-CV
+None/1/3/2/3/Full keyboard tracking. Tracking uses the current MIDI or pitch-CV
 note relative to C3, so a positive setting keeps brighter notes more open.
 
 The oscillator pass uses a generated, zero-DC, multiband wavetable bank:

@@ -42,7 +42,7 @@
         <summary>Developer monitor</summary>
         <div class="developer-actions">
           <button id="midiClearLog" type="button">Clear log</button>
-          <label class="midi-filter"><input id="midiShowAll" type="checkbox"> Include performance MIDI</label>
+          <label class="midi-filter"><input id="midiShowAll" type="checkbox"> Show all MIDI</label>
         </div>
         <pre id="midiLog" class="midi-log" aria-live="polite">Waiting for MIDI traffic.</pre>
         <div class="sysex-send">
@@ -53,10 +53,10 @@
     </section>
 
     <section class="panel-map" aria-label="Physical panel mapping">
-      <div><span>Middle</span><strong>Cutoff · Resonance · Filter contour</strong></div>
-      <div><span>Up</span><strong>OSC 1/2: Tune · Level · Waveform; OSC 3: Offset · Return · Range</strong></div>
-      <div><span>Down &lt;0.5 s</span><strong>OSC 3 offset · Mod depth · Pitch/filter blend</strong></div>
-      <div><span>Down 0.5-5 s</span><strong>Noise level · White/pink · CV In 2/noise; 4 s warning · 5 s presets</strong></div>
+      <div><span>Middle</span><strong>Cutoff · Oscillator mix · Contour</strong></div>
+      <div><span>Up</span><strong>Selected OSC: Range · Level · Wave / Role</strong></div>
+      <div><span>Hold down</span><strong>OSC 3 CV · External LFO depth · Destination</strong></div>
+      <div><span>Long hold</span><strong>4 s warning · 5 s preset selection</strong></div>
     </section>
 
     <section class="preset-workspace" aria-label="Preset library">
@@ -94,30 +94,33 @@
       <fieldset class="module oscillator">
         <legend>Oscillator 1</legend>
         <label>Range<select data-param="osc1.range"><option>32'</option><option>16'</option><option selected>8'</option><option>4'</option><option>2'</option></select></label>
-        <label>Tune<input data-param="osc1.tune" data-unit="st" type="range" min="-7" max="7" value="0"></label>
         <label>Waveform<select data-param="osc1.waveform"><option>Triangle</option><option>Triangle / sawtooth</option><option selected>Sawtooth</option><option>Square</option><option>Wide rectangle</option><option>Narrow rectangle</option></select></label>
+        <label>Level<input data-param="osc1.level" data-unit="%" type="range" min="0" max="100" value="50"></label>
       </fieldset>
 
       <fieldset class="module oscillator">
         <legend>Oscillator 2</legend>
         <label>Range<select data-param="osc2.range"><option>32'</option><option>16'</option><option selected>8'</option><option>4'</option><option>2'</option></select></label>
         <label>Waveform<select data-param="osc2.waveform"><option>Triangle</option><option>Triangle / sawtooth</option><option>Sawtooth</option><option selected>Square</option><option>Wide rectangle</option><option>Narrow rectangle</option></select></label>
-        <label>Frequency<input data-param="osc2.interval" data-unit="st" type="range" min="-7" max="7" value="0"></label>
+        <label>Interval<input data-param="osc2.interval" data-unit="st" type="range" min="-24" max="24" value="0"></label>
+        <label>Level<input data-param="osc2.level" data-unit="%" type="range" min="0" max="100" value="50"></label>
       </fieldset>
 
       <fieldset class="module external">
         <legend>External Oscillator 3</legend>
-        <label>Range<select data-param="osc3.range"><option>32'</option><option>16'</option><option selected>8'</option><option>4'</option><option>2'</option></select></label>
-        <label>Frequency<input data-param="osc3.offset" data-unit="st" type="range" min="-7" max="7" value="0"></label>
+        <label>Pitch CV range<select data-param="osc3.pitchRange"><option>Off</option><option selected>1V / octave</option><option>Wide</option></select></label>
+        <label>Pitch offset<input data-param="osc3.offset" data-unit="st" type="range" min="-24" max="24" value="0"></label>
+        <label>Audio return<input data-param="osc3.returnLevel" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Sync mode<select data-param="osc3.syncMode"><option selected>Free running</option><option>Envelope reset</option><option>Hard sync</option></select></label>
       </fieldset>
 
       <fieldset class="module mixer">
-        <legend>Mixer</legend>
+        <legend>Mixer And Drive</legend>
         <label>OSC 1 level<input data-param="mixer.osc1Level" data-unit="%" type="range" min="0" max="100" value="50"></label>
         <label>OSC 2 level<input data-param="mixer.osc2Level" data-unit="%" type="range" min="0" max="100" value="50"></label>
         <label>OSC 3 return<input data-param="mixer.osc3Return" data-unit="%" type="range" min="0" max="100" value="50"></label>
-        <label>Noise level<input data-param="mixer.noise" data-unit="%" type="range" min="0" max="100" value="0"></label>
-        <label>Noise colour<select data-param="mixer.noiseColour"><option selected>White</option><option>Pink</option></select></label>
+        <label>Noise<input data-param="mixer.noise" data-unit="%" type="range" min="0" max="100" value="50"></label>
+        <label>Drive<input data-param="mixer.drive" data-unit="%" type="range" min="0" max="100" value="50"></label>
       </fieldset>
 
       <fieldset class="module filter wide">
@@ -125,33 +128,37 @@
         <label>Cutoff<input data-param="filter.cutoff" data-unit="Hz" type="range" min="20" max="12000" value="6010"></label>
         <label>Emphasis<input data-param="filter.emphasis" data-unit="%" type="range" min="0" max="100" value="50"></label>
         <label>Contour<input data-param="filter.contour" data-unit="%" type="range" min="0" max="100" value="50"></label>
-        <label>Mode<select data-param="filter.range"><option selected>Low pass</option><option>High pass</option></select></label>
-        <label>Keyboard tracking<select data-param="filter.keyboardTracking"><option>None</option><option>1/3</option><option selected>2/3</option><option>Full</option></select></label>
+        <label>Keyboard tracking<select data-param="filter.keyboardTracking"><option>Off</option><option selected>Half</option><option>Full</option></select></label>
+        <label>Filter CV attenuator<input data-param="filter.cvAttenuator" data-unit="%" type="range" min="-100" max="100" value="0"></label>
       </fieldset>
 
       <fieldset class="module envelope">
         <legend>Filter Contour</legend>
-        <label>Attack<input data-param="filterAds.attack" data-unit="ms" type="range" min="1" max="10000" value="1"></label>
-        <label>Decay<input data-param="filterAds.decay" data-unit="ms" type="range" min="4" max="10000" value="500"></label>
+        <label>Attack<input data-param="filterAds.attack" data-unit="ms" type="range" min="0" max="5000" value="0"></label>
+        <label>Decay<input data-param="filterAds.decay" data-unit="ms" type="range" min="0" max="5000" value="500"></label>
         <label>Sustain<input data-param="filterAds.sustain" data-unit="%" type="range" min="0" max="100" value="0"></label>
-        <label>Decay switch <select data-param="filterAds.decayRelease"><option value="false" selected>Off</option><option value="true">On</option></select></label>
       </fieldset>
 
       <fieldset class="module envelope">
         <legend>Amplifier Contour</legend>
-        <label>Attack<input data-param="ampAds.attack" data-unit="ms" type="range" min="1" max="10000" value="1"></label>
-        <label>Decay<input data-param="ampAds.decay" data-unit="ms" type="range" min="4" max="10000" value="500"></label>
+        <label>Attack<input data-param="ampAds.attack" data-unit="ms" type="range" min="0" max="5000" value="0"></label>
+        <label>Decay<input data-param="ampAds.decay" data-unit="ms" type="range" min="0" max="5000" value="500"></label>
         <label>Sustain<input data-param="ampAds.sustain" data-unit="%" type="range" min="0" max="100" value="100"></label>
-        <label>Decay switch <select data-param="ampAds.decayRelease"><option value="false" selected>Off</option><option value="true">On</option></select></label>
       </fieldset>
 
       <fieldset class="module modulation wide">
         <legend>Modulation</legend>
+        <label>Source<select data-param="modulation.source"><option>Internal LFO</option><option selected>External LFO / CV In 2</option><option>Filter contour</option></select></label>
+        <label>LFO rate<input data-param="modulation.rate" data-unit="Hz" type="range" min="0" max="30" step="0.1" value="15"></label>
         <label>Depth<input data-param="modulation.depth" data-unit="%" type="range" min="0" max="100" value="50"></label>
         <label>Pitch / filter blend<input data-param="modulation.blend" data-unit="%" type="range" min="0" max="100" value="50"></label>
-        <label>CV In 2 / noise blend<input data-param="modulation.noiseBlend" data-unit="%" type="range" min="0" max="100" value="0"></label>
-        <label>Oscillator modulation<select data-param="modulation.oscillatorEnabled"><option selected>On</option><option>Off</option></select></label>
-        <label>Filter modulation<select data-param="modulation.filterEnabled"><option selected>On</option><option>Off</option></select></label>
+        <label>Glide<input data-param="modulation.glide" data-unit="ms" type="range" min="0" max="3000" value="1500"></label>
+      </fieldset>
+
+      <fieldset class="module io wide">
+        <legend>Patch Points</legend>
+        <label>CV Out 1<select data-param="outputs.cvOut1"><option selected>OSC 3 pitch</option><option>Filter cutoff</option><option>Envelope</option></select></label>
+        <label>CV Out 2<select data-param="outputs.cvOut2"><option selected>Amplitude contour</option><option>Filter contour</option><option>LFO</option></select></label>
       </fieldset>
     </section>
 

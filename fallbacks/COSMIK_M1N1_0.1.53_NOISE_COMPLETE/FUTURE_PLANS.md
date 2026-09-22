@@ -106,26 +106,14 @@ intent, not behaviour already promised by the current firmware.
   drive settings.
 - As part of this pass, assign resonance/emphasis to Middle-page X and retain
   Main for cutoff and Y for filter-contour amount.
-- Implemented in the filter-mode pass: Low pass retains the established
-  ladder-filter output; High pass uses its complementary output. Verify its
-  resonance and gain by ear across the Workshop System pitch range.
-- Implemented: independent filter-modulation and oscillator-modulation
-  switches route the selected source to cutoff and pitch separately.
+- Add a Model D-style low/high filter-range selection, defining and testing
+  the useful cutoff span for each range on Workshop System hardware.
+- Add an explicit filter-modulation switch so the selected modulation source
+  can be routed to cutoff independently of oscillator modulation.
+- Add an explicit oscillator-modulation switch so the selected modulation
+  source can be routed to oscillator pitch independently of filter modulation.
 - Integrate the separate filter ADSR and keyboard tracking only after the
   resonant core is stable and voiced on Workshop Computer hardware.
-
-## Modulation Sources
-
-- Add an internal LFO with triangle and square waveforms plus a musically
-  useful rate control. It must run independently of note gates and remain
-  available as a modulation source alongside `CV In 2` and internal noise.
-- Map MIDI CC 1 (modulation wheel) to Minimoog Voice modulation depth, with
-  explicit pickup/combining behaviour relative to the stored depth control.
-- Replace the current fixed `CV In 2`/noise blend with a Web UI source mixer.
-  It should expose selectable or blendable internal LFO, external `CV In 2`,
-  white/pink noise, external OSC3 where musically appropriate, and Filter EG.
-  Keep source selection and levels in presets; retain the held-Down hardware
-  panel for fast noise performance controls.
 
 ## Contours And MIDI
 
@@ -136,9 +124,6 @@ intent, not behaviour already promised by the current firmware.
   CV controls pitch, and the active MIDI note when MIDI has pitch priority.
 - Keep `CV In 1` as independent positive filter modulation rather than using
   it as the keyboard-tracking source.
-- Add a preset-backed Glide control. It should replace the inherited fixed
-  pitch smoother with a zero-time setting plus a musically useful slew range,
-  applying equally to MIDI notes and calibrated `Audio In 1` pitch changes.
 - Define pulse/CV and MIDI note priority, retrigger behaviour, velocity,
   pitch bend, and the relationship between MIDI pitch and the physical range
   controls.
