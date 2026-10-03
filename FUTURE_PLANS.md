@@ -118,14 +118,23 @@ intent, not behaviour already promised by the current firmware.
 
 - Add an internal LFO with triangle and square waveforms plus a musically
   useful rate control. It must run independently of note gates and remain
-  available as a modulation source alongside `CV In 2` and internal noise.
+  available as the MOD SRC B alternative to Noise/external MOD SOURCE.
 - Map MIDI CC 1 (modulation wheel) to Minimoog Voice modulation depth, with
   explicit pickup/combining behaviour relative to the stored depth control.
-- Replace the current fixed `CV In 2`/noise blend with a Web UI source mixer.
-  It should expose selectable or blendable internal LFO, external `CV In 2`,
-  white/pink noise, external OSC3 where musically appropriate, and Filter EG.
-  Keep source selection and levels in presets; retain the held-Down hardware
-  panel for fast noise performance controls.
+- Implemented: the Web UI's Model D-style Modulation Controllers save MOD SRC
+  A (`External OSC 3 / CV In 2` or Filter Contour), MOD SRC B (Noise or
+  external MOD SOURCE), and MOD MIX in each voice. The held-Down hardware
+  panel retains fast MOD MIX control.
+
+## Model D Refinements
+
+- Add a restrained, optional mixer-drive/overload control before the ladder
+  filter. Preserve the present calibrated mixer at its default setting.
+- Refine low-pass gain staging, cutoff feel, and resonance interaction with
+  mixer drive. High-pass remains a supported Behringer Model D mode.
+- Keep external OSC 3 pitch-following a patching choice: unplug `CV Out 1`
+  and tune the external oscillator independently rather than adding an OSC3
+  Control switch to the card.
 
 ## Contours And MIDI
 

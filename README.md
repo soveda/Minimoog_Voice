@@ -3,7 +3,7 @@
 An in-progress, Minimoog-influenced mono voice for the Music Thing Modular
 Workshop Computer. It begins from the stable C1ZZL3 Gnarly architecture, while
 moving toward a two-internal-oscillator voice with an external oscillator 3
-pitch/CV loop and external-LFO modulation.
+pitch/CV loop and Model D-style modulation routing.
 
 ## Current Firmware Behaviour
 
@@ -21,10 +21,10 @@ pitch/CV loop and external-LFO modulation.
   semitones flat to seven semitones sharp, X sets the audio-return level, and
   Y selects the external oscillator's `32'`--`2'` pipe-length range.
 - Switch down for less than half a second: external oscillator frequency
-  offset, external-LFO depth, pitch/filter destination blend. Hold Down longer
-  than half a second: Main is noise level, X crosses a small noon dead zone to
-  select white (anticlockwise) or pink (clockwise) noise, and Y crossfades modulation from `CV In 2`
-  (anticlockwise) to internal noise (clockwise).
+  offset, MOD DEPTH, pitch/filter destination balance. Hold Down longer than
+  half a second: Main is noise level, X crosses a small noon dead zone to
+  select white (anticlockwise) or pink (clockwise) noise, and Y controls MOD
+  MIX from source A (anticlockwise) to source B (clockwise).
 - Changing switch position uses soft pickup for all three knobs: a page keeps
   its current settings until each physical knob reaches or crosses that
   setting, avoiding jumps between pages.
@@ -47,9 +47,8 @@ pitch/CV loop and external-LFO modulation.
   An active USB MIDI note takes priority over this input for pitch.
 - `Audio In 2`: external oscillator return, used as OSC 3 in the mixer.
 - `CV In 1`: positive filter-cutoff modulation.
-- `CV In 2`: external LFO input. Its depth and pitch/filter destination are
-  set in the Web UI; the held-Down noise panel can crossfade it with internal
-  noise as the modulation source.
+- `CV In 2`: external OSC 3 modulation output or another external modulation
+  source. It is selectable as MOD SRC A or MOD SRC B in the Web UI.
 - `Pulse In 1` and `Pulse In 2`: either acts as a gate for the first-pass VCA.
 - USB MIDI: note on/off supplies pitch and gate; pitch bend is active.
 
@@ -59,8 +58,8 @@ pitch/CV loop and external-LFO modulation.
 | --- | --- |
 | Middle | 0: cutoff; 2: resonance/emphasis; 4: filter contour; 1, 3, and 5: off. |
 | Up | 0, 2, and 4: selected OSC 1, OSC 2, or external OSC 3. LED 1 shows OSC 2 or OSC 3 pitch deviation from centre. LEDs 3 and 5 show the selected internal waveform: dark/dark triangle; steady/dark triangle/sawtooth (sharktooth); dark/steady saw; flashing/dark square; dark/flashing wide rectangle; flashing/flashing narrow rectangle. |
-| Down | 0: external OSC 3 pitch offset; 1: external-LFO depth; 2: LFO pitch/filter balance; 3-4: off; 5: half brightness. |
-| Down held 0.5-5 seconds | 0: noise level; 1: noise-modulation amount; 2: CV In 2 modulation amount; 3: white selected; 5: pink selected. LED 4 stays off until the warning. |
+| Down | 0: external OSC 3 pitch offset; 1: MOD DEPTH; 2: pitch/filter balance; 3-4: off; 5: half brightness. |
+| Down held 0.5-5 seconds | 0: noise level; 1: source-B amount; 2: source-A amount; 3: white selected; 5: pink selected. LED 4 stays off until the warning. |
 | Down held 4 seconds | LED 4 flashes as a warning. |
 | Startup Down hold or Down held 5 seconds | LEDs 0-2 show the slot index `0-7`; LED 3 flashes as the selector cursor; LED 4 is bright for the active preset and half bright for another selectable preset. LED 5 off is factory; LED 5 on is user. Empty user slots are skipped. At startup, release the initial Down hold to arm selection, then press and release Down again to load and exit. |
 
@@ -68,8 +67,10 @@ pitch/CV loop and external-LFO modulation.
 selects its established low-pass output or a complementary high-pass output.
 It has a division-free feedback solve and soft transistor-style stage shaping.
 The Web UI exposes its cutoff, emphasis, contour, filter ADS, and Model D-style
-None/1/3/2/3/Full keyboard tracking, plus independent oscillator and filter
-modulation enables. Tracking uses the current MIDI or pitch-CV
+None/1/3/2/3/Full keyboard tracking. Its Modulation Controllers select
+`External OSC 3 / CV In 2` or Filter Contour as MOD SRC A, Noise or external
+MOD SOURCE as MOD SRC B, then crossfade them with MOD MIX. Independent
+oscillator and filter modulation enables route the mixed source. Tracking uses the current MIDI or pitch-CV
 note relative to C3, so a positive setting keeps brighter notes more open.
 
 The oscillator pass uses a generated, zero-DC, multiband wavetable bank:
