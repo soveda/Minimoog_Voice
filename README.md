@@ -21,7 +21,8 @@ pitch/CV loop and Model D-style modulation routing.
   semitones flat to seven semitones sharp, X sets the audio-return level, and
   Y selects the external oscillator's `32'`--`2'` pipe-length range.
 - Switch down for less than half a second: external oscillator frequency
-  offset, MOD DEPTH, pitch/filter destination balance. Hold Down longer than
+  offset, panel MOD DEPTH, pitch/filter destination balance. MIDI CC1 adds to
+  panel MOD DEPTH without changing its stored setting. Hold Down longer than
   half a second: Main is noise level, X crosses a small noon dead zone to
   select white (anticlockwise) or pink (clockwise) noise, and Y controls MOD
   MIX from source A (anticlockwise) to source B (clockwise).
@@ -68,8 +69,10 @@ selects its established low-pass output or a complementary high-pass output.
 It has a division-free feedback solve and soft transistor-style stage shaping.
 The Web UI exposes its cutoff, emphasis, contour, filter ADS, and Model D-style
 None/1/3/2/3/Full keyboard tracking. Its Modulation Controllers select
-`External OSC 3 / CV In 2` or Filter Contour as MOD SRC A, Noise or external
-MOD SOURCE as MOD SRC B, then crossfade them with MOD MIX. Independent
+`External OSC 3 / CV In 2` or Filter Contour as MOD SRC A, and Noise, external
+MOD SOURCE, or internal LFO as MOD SRC B, then crossfade them with MOD MIX.
+The LFO has triangle/square shapes and a 0.05--14 Hz rate control.
+MIDI CC1 adds to MOD DEPTH, matching the role of a modulation wheel. Independent
 oscillator and filter modulation enables route the mixed source. Tracking uses the current MIDI or pitch-CV
 note relative to C3, so a positive setting keeps brighter notes more open.
 

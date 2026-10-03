@@ -243,17 +243,20 @@ public:
             gateWasHigh = gateHigh;
 
             int32_t noiseSignal = nextNoiseSample();
+            int32_t internalLfo = nextInternalLfoSample();
             // The Model D-style MOD MIX crossfades two selected sources.
             // Defaults retain the previous External OSC 3/CV In 2 -> noise
             // behaviour, so stored voices keep their established sound.
             int32_t modulationPrimary = modulationPrimarySourceControl >= 2048
                 ? filterEnvelopeLevel : cv2;
-            int32_t modulationSecondary = modulationSecondarySourceControl >= 2048
-                ? cv2 : noiseSignal;
+            int32_t modulationSecondary = modulationSecondarySourceControl < 1365
+                ? noiseSignal : modulationSecondarySourceControl < 2730
+                ? cv2 : internalLfo;
             int32_t modulationSource =
                 (modulationPrimary * (4095 - modulationNoiseBlendControl) +
                  modulationSecondary * modulationNoiseBlendControl) >> 12;
-            int32_t lfo = (modulationSource * lfoDepthControl) >> 12;
+            int32_t modulationDepth = clamp12(lfoDepthControl + midiModWheelControl);
+            int32_t lfo = (modulationSource * modulationDepth) >> 12;
             int32_t pitchLfo = oscillatorModulationEnabled
                 ? (lfo * (4095 - lfoDestinationControl)) >> 12 : 0;
             int32_t pitchUnits = currentPitchUnits(pitchControl, pitchInputMillivolts) + pitchLfo;
@@ -452,7 +455,7 @@ private:
     static constexpr uint32_t UserPresetFlashOffset =
         CustomEnvelopeFlashOffset - FLASH_SECTOR_SIZE;
     static constexpr uint32_t UserPresetMagic = 0x4D4E5650u; // MNVP
-    static constexpr uint16_t UserPresetVersion = 8u;
+    static constexpr uint16_t UserPresetVersion = 9u;
     static constexpr uint32_t SaveHoldSamples = 384000u;
     static constexpr uint32_t SaveConfirmSamples = 48000u;
     static constexpr uint32_t PresetWarningSamples = 192000u; // Four seconds.
@@ -499,6 +502,8 @@ private:
         int32_t oscillatorModulationEnabled = 4095;
         int32_t modulationPrimarySource = 0;
         int32_t modulationSecondarySource = 0;
+        int32_t lfoRate = 1024;
+        int32_t lfoShape = 0;
     };
 
     struct SavedUserVoiceV2
@@ -598,6 +603,20 @@ private:
         int32_t oscillatorModulationEnabled;
     };
 
+    // Version 8 adds the first Model D-style source selectors.
+    struct SavedUserVoiceV8
+    {
+        int32_t pitch; int32_t osc2Interval; int32_t wave1; int32_t wave2;
+        int32_t osc1Level; int32_t osc2Level; int32_t externalLevel;
+        int32_t externalRange; int32_t filterCutoff; int32_t oscillatorMix;
+        int32_t contour; int32_t resonance; int32_t externalOffset;
+        int32_t lfoDepth; int32_t lfoDestination; int32_t osc1Range;
+        int32_t osc2Range; int32_t noiseLevel; int32_t noiseColour;
+        int32_t modulationNoiseBlend; int32_t filterHighPass;
+        int32_t filterModulationEnabled; int32_t oscillatorModulationEnabled;
+        int32_t modulationPrimarySource; int32_t modulationSecondarySource;
+    };
+
     struct SavedUserVoice
     {
         int32_t pitch; int32_t osc2Interval; int32_t wave1; int32_t wave2;
@@ -609,6 +628,7 @@ private:
         int32_t modulationNoiseBlend; int32_t filterHighPass;
         int32_t filterModulationEnabled; int32_t oscillatorModulationEnabled;
         int32_t modulationPrimarySource; int32_t modulationSecondarySource;
+        int32_t lfoRate; int32_t lfoShape;
     };
 
     struct SavedUserContourV3
@@ -728,6 +748,19 @@ private:
         uint8_t reserved[7];
         uint8_t names[PresetSlotCount][16];
         SavedUserVoiceV7 voices[PresetSlotCount];
+        SavedUserContour contours[PresetSlotCount];
+        uint32_t checksum;
+    };
+
+    struct SavedUserPresetBankV8
+    {
+        uint32_t magic;
+        uint16_t version;
+        uint16_t size;
+        uint8_t loadedMask;
+        uint8_t reserved[7];
+        uint8_t names[PresetSlotCount][16];
+        SavedUserVoiceV8 voices[PresetSlotCount];
         SavedUserContour contours[PresetSlotCount];
         uint32_t checksum;
     };
@@ -1572,7 +1605,11 @@ private:
 
         if (type == 0xB0u)
         {
-            if (midiData[0] == MidiCcModWheelOsc1Pd || midiData[0] == MidiCcOsc1Pd)
+            if (midiData[0] == MidiCcModWheelOsc1Pd)
+            {
+                midiModWheelControl = midiCcToControl(midiData[1]);
+            }
+            else if (midiData[0] == MidiCcOsc1Pd)
             {
                 pdControl = midiCcToControl(midiData[1]);
                 midiResetTuringXPickup = true;
@@ -1772,7 +1809,7 @@ private:
 
     void appendMinimoogVoice(uint8_t* payload, uint32_t& offset, const SavedUserVoice& voice)
     {
-        const int32_t values[] = {voice.pitch, voice.osc2Interval, voice.wave1, voice.wave2, voice.osc1Level, voice.osc2Level, voice.externalLevel, voice.externalRange, voice.filterCutoff, voice.oscillatorMix, voice.contour, voice.resonance, voice.externalOffset, voice.lfoDepth, voice.lfoDestination, voice.osc1Range, voice.osc2Range, voice.noiseLevel, voice.noiseColour, voice.modulationNoiseBlend, voice.filterHighPass, voice.filterModulationEnabled, voice.oscillatorModulationEnabled, voice.modulationPrimarySource, voice.modulationSecondarySource};
+        const int32_t values[] = {voice.pitch, voice.osc2Interval, voice.wave1, voice.wave2, voice.osc1Level, voice.osc2Level, voice.externalLevel, voice.externalRange, voice.filterCutoff, voice.oscillatorMix, voice.contour, voice.resonance, voice.externalOffset, voice.lfoDepth, voice.lfoDestination, voice.osc1Range, voice.osc2Range, voice.noiseLevel, voice.noiseColour, voice.modulationNoiseBlend, voice.filterHighPass, voice.filterModulationEnabled, voice.oscillatorModulationEnabled, voice.modulationPrimarySource, voice.modulationSecondarySource, voice.lfoRate, voice.lfoShape};
         for (int32_t value : values) { uint16_t safe = clamp12(value); payload[offset++] = safe & 0x7Fu; payload[offset++] = safe >> 7; }
     }
 
@@ -1787,9 +1824,9 @@ private:
 
     SavedUserVoice readMinimoogVoice(uint32_t& offset)
     {
-        int32_t values[25] = {};
-        for (uint32_t i = 0; i < 25u; ++i) { values[i] = (sysexBuffer[offset] & 0x7Fu) | ((sysexBuffer[offset + 1u] & 0x7Fu) << 7); offset += 2u; }
-        return {values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13], values[14], values[15], values[16], values[17], values[18], values[19], values[20], values[21], values[22], values[23], values[24]};
+        int32_t values[27] = {};
+        for (uint32_t i = 0; i < 27u; ++i) { values[i] = (sysexBuffer[offset] & 0x7Fu) | ((sysexBuffer[offset + 1u] & 0x7Fu) << 7); offset += 2u; }
+        return {values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13], values[14], values[15], values[16], values[17], values[18], values[19], values[20], values[21], values[22], values[23], values[24], values[25], values[26]};
     }
 
     SavedUserContour readMinimoogContour(uint32_t& offset)
@@ -1804,7 +1841,7 @@ private:
         uint8_t command = sysexBuffer[5];
         if (command == MinimoogMidiCommandIdentityRequest && sysexLength == 6u)
         {
-            uint8_t payload[] = {8u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
+            uint8_t payload[] = {9u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
             queueMinimoogResponse(MinimoogMidiCommandIdentityResponse, payload, sizeof(payload));
             return;
         }
@@ -1817,7 +1854,7 @@ private:
         if (command == MinimoogMidiCommandRequestUser && sysexLength == 7u)
         {
             uint8_t slot = sysexBuffer[6] & 0x07u; if (!(userPresetBank.loadedMask & (1u << slot))) return;
-            uint8_t payload[85] = {slot}; uint32_t offset = 1;
+            uint8_t payload[89] = {slot}; uint32_t offset = 1;
             for (uint32_t i = 0; i < 16u; ++i) payload[offset++] = userPresetBank.names[slot][i];
             appendMinimoogVoice(payload, offset, userPresetBank.voices[slot]);
             appendMinimoogContour(payload, offset, userPresetBank.contours[slot]);
@@ -1856,7 +1893,7 @@ private:
             uint8_t payload[] = {MinimoogMidiCommandCaptureUser, slot, userPresetBank.loadedMask}; queueMinimoogResponse(MinimoogMidiCommandAck, payload, sizeof(payload));
             return;
         }
-        if (command == MinimoogMidiCommandSetVoice && sysexLength == 74u)
+        if (command == MinimoogMidiCommandSetVoice && sysexLength == 78u)
         {
             uint32_t offset = 6;
             applyUserVoice(readMinimoogVoice(offset));
@@ -1867,7 +1904,7 @@ private:
         }
         if (command == MinimoogMidiCommandRequestVoice && sysexLength == 6u)
         {
-            uint8_t payload[68] = {}; uint32_t offset = 0;
+            uint8_t payload[72] = {}; uint32_t offset = 0;
             appendMinimoogVoice(payload, offset, currentUserVoice());
             appendMinimoogContour(payload, offset, currentUserContour());
             queueMinimoogResponse(MinimoogMidiCommandVoiceResponse, payload, offset);
@@ -3028,6 +3065,8 @@ private:
         oscillatorModulationEnabled = preset.oscillatorModulationEnabled >= 2048;
         modulationPrimarySourceControl = preset.modulationPrimarySource;
         modulationSecondarySourceControl = preset.modulationSecondarySource;
+        lfoRateControl = preset.lfoRate;
+        lfoShapeControl = preset.lfoShape;
         applyFactoryContour(slot);
         activePresetSlot = slot & 0x07u;
     }
@@ -3062,7 +3101,7 @@ private:
             noiseLevelControl, noiseColourControl, modulationNoiseBlendControl,
             filterHighPassControl ? 4095 : 0, filterModulationEnabled ? 4095 : 0,
             oscillatorModulationEnabled ? 4095 : 0, modulationPrimarySourceControl,
-            modulationSecondarySourceControl};
+            modulationSecondarySourceControl, lfoRateControl, lfoShapeControl};
     }
 
     SavedUserContour currentUserContour() const
@@ -3094,6 +3133,8 @@ private:
         oscillatorModulationEnabled = voice.oscillatorModulationEnabled >= 2048;
         modulationPrimarySourceControl = clamp12(voice.modulationPrimarySource);
         modulationSecondarySourceControl = clamp12(voice.modulationSecondarySource);
+        lfoRateControl = clamp12(voice.lfoRate);
+        lfoShapeControl = clamp12(voice.lfoShape);
         osc2Detune = 0;
     }
 
@@ -4206,6 +4247,11 @@ private:
         return *reinterpret_cast<const SavedUserPresetBankV7*>(XIP_BASE + UserPresetFlashOffset);
     }
 
+    const SavedUserPresetBankV8& flashUserPresetBankV8()
+    {
+        return *reinterpret_cast<const SavedUserPresetBankV8*>(XIP_BASE + UserPresetFlashOffset);
+    }
+
     uint32_t checksumUserPresetBank(const SavedUserPresetBank& state)
     {
         const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&state);
@@ -4267,6 +4313,14 @@ private:
         return checksum;
     }
 
+    uint32_t checksumUserPresetBankV8(const SavedUserPresetBankV8& state)
+    {
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&state);
+        uint32_t checksum = 2166136261u;
+        for (uint32_t i = 0; i < sizeof(state) - sizeof(uint32_t); ++i) { checksum ^= bytes[i]; checksum *= 16777619u; }
+        return checksum;
+    }
+
     bool isValidUserPresetBank(const SavedUserPresetBank& state)
     {
         return state.magic == UserPresetMagic && state.version == UserPresetVersion &&
@@ -4312,6 +4366,12 @@ private:
             state.size == sizeof(SavedUserPresetBankV7) && state.checksum == checksumUserPresetBankV7(state);
     }
 
+    bool isValidUserPresetBankV8(const SavedUserPresetBankV8& state)
+    {
+        return state.magic == UserPresetMagic && state.version == 8u &&
+            state.size == sizeof(SavedUserPresetBankV8) && state.checksum == checksumUserPresetBankV8(state);
+    }
+
     SavedUserContour migrateUserContourV3(const SavedUserContourV3& legacy)
     {
         return {legacy.ampAttack, legacy.ampDecay, legacy.ampSustain,
@@ -4353,7 +4413,8 @@ private:
             legacy.wave2, legacy.osc1Level, legacy.osc2Level, legacy.externalLevel,
             2048, legacy.filterCutoff, legacy.oscillatorMix, legacy.contour,
             legacy.resonance, legacy.externalOffset, legacy.lfoDepth,
-            legacy.lfoDestination, 2048, 2048, 0, 0, 0, 0, 4095, 4095, 0, 0};
+            legacy.lfoDestination, 2048, 2048, 0, 0, 0, 0, 4095, 4095, 0, 0,
+            1024, 0};
         splitLegacyWideOffset(legacy.osc2Interval, migrated.osc2Range,
             migrated.osc2Interval);
         splitLegacyWideOffset(legacy.externalOffset, migrated.externalRange,
@@ -4368,7 +4429,7 @@ private:
             legacy.externalRange, legacy.filterCutoff, legacy.oscillatorMix,
             legacy.contour, legacy.resonance, legacy.externalOffset,
             legacy.lfoDepth, legacy.lfoDestination, legacy.osc1Range,
-            legacy.osc2Range, 0, 0, 0, 0, 4095, 4095, 0, 0};
+            legacy.osc2Range, 0, 0, 0, 0, 4095, 4095, 0, 0, 1024, 0};
     }
 
     SavedUserVoice migrateUserVoiceV6(const SavedUserVoiceV6& legacy)
@@ -4379,7 +4440,7 @@ private:
             legacy.contour, legacy.resonance, legacy.externalOffset,
             legacy.lfoDepth, legacy.lfoDestination, legacy.osc1Range,
             legacy.osc2Range, legacy.noiseLevel, legacy.noiseColour,
-            legacy.modulationNoiseBlend, 0, 4095, 4095, 0, 0};
+            legacy.modulationNoiseBlend, 0, 4095, 4095, 0, 0, 1024, 0};
     }
 
     SavedUserVoice migrateUserVoiceV7(const SavedUserVoiceV7& legacy)
@@ -4392,7 +4453,21 @@ private:
             legacy.osc2Range, legacy.noiseLevel, legacy.noiseColour,
             legacy.modulationNoiseBlend, legacy.filterHighPass,
             legacy.filterModulationEnabled, legacy.oscillatorModulationEnabled,
-            0, 0};
+            0, 0, 1024, 0};
+    }
+
+    SavedUserVoice migrateUserVoiceV8(const SavedUserVoiceV8& legacy)
+    {
+        return {legacy.pitch, legacy.osc2Interval, legacy.wave1, legacy.wave2,
+            legacy.osc1Level, legacy.osc2Level, legacy.externalLevel,
+            legacy.externalRange, legacy.filterCutoff, legacy.oscillatorMix,
+            legacy.contour, legacy.resonance, legacy.externalOffset,
+            legacy.lfoDepth, legacy.lfoDestination, legacy.osc1Range,
+            legacy.osc2Range, legacy.noiseLevel, legacy.noiseColour,
+            legacy.modulationNoiseBlend, legacy.filterHighPass,
+            legacy.filterModulationEnabled, legacy.oscillatorModulationEnabled,
+            legacy.modulationPrimarySource, legacy.modulationSecondarySource,
+            1024, 0};
     }
 
     void loadUserPresetBank()
@@ -4402,6 +4477,19 @@ private:
         {
             userPresetBank = saved;
             return;
+        }
+
+        const SavedUserPresetBankV8& legacyV8 = flashUserPresetBankV8();
+        if (isValidUserPresetBankV8(legacyV8))
+        {
+            userPresetBank.loadedMask = legacyV8.loadedMask;
+            for (uint32_t slot = 0; slot < PresetSlotCount; ++slot)
+            {
+                for (uint32_t character = 0; character < 16u; ++character) userPresetBank.names[slot][character] = legacyV8.names[slot][character];
+                userPresetBank.voices[slot] = migrateUserVoiceV8(legacyV8.voices[slot]);
+                userPresetBank.contours[slot] = legacyV8.contours[slot];
+            }
+            saveUserPresetBank(); return;
         }
 
         const SavedUserPresetBankV7& legacyV7 = flashUserPresetBankV7();
@@ -4883,6 +4971,19 @@ private:
         return (white + (pinkNoiseState * 3)) >> 2;
     }
 
+    int32_t nextInternalLfoSample()
+    {
+        // Quadratic scaling keeps the low end usefully slow while reaching
+        // conventional vibrato speed without a division or lookup in audio.
+        uint32_t rate = (uint32_t)clamp12(lfoRateControl);
+        uint32_t increment = 4474u + (uint32_t)(((uint64_t)rate * rate * 1249000u) >> 24);
+        lfoPhase += increment;
+        uint32_t phase = lfoPhase >> 20;
+        if (lfoShapeControl >= 2048)
+            return phase < 2048u ? -2048 : 2047;
+        return phase < 2048u ? ((int32_t)phase << 1) - 2048 : 6142 - ((int32_t)phase << 1);
+    }
+
     int32_t pitchUnits(int32_t knob, int32_t pitchInputMillivolts)
     {
         int32_t mainUnits = MainPitchCentreUnits +
@@ -5088,6 +5189,10 @@ private:
     int32_t modulationNoiseBlendControl = 0;
     int32_t modulationPrimarySourceControl = 0;
     int32_t modulationSecondarySourceControl = 0;
+    int32_t lfoRateControl = 1024;
+    int32_t lfoShapeControl = 0;
+    int32_t midiModWheelControl = 0;
+    uint32_t lfoPhase = 0;
     bool filterHighPassControl = false;
     bool filterModulationEnabled = true;
     bool oscillatorModulationEnabled = true;

@@ -148,8 +148,10 @@
       <fieldset class="module modulation wide">
         <legend>Modulation Controllers</legend>
         <label>MOD SRC A<select data-param="modulation.primarySource"><option selected>External OSC 3 / CV In 2</option><option>Filter contour</option></select></label>
-        <label>MOD SRC B<select data-param="modulation.secondarySource"><option selected>Noise</option><option>External MOD SOURCE / CV In 2</option></select></label>
-        <label>MOD MIX<input data-param="modulation.noiseBlend" data-unit="%" type="range" min="0" max="100" value="0"></label>
+        <label>MOD SRC B<select data-param="modulation.secondarySource"><option selected>Noise</option><option>External MOD SOURCE / CV In 2</option><option>Internal LFO</option></select></label>
+        <label class="toggle-control"><span>LFO shape</span><span class="toggle-positions"><span>Triangle</span><input aria-label="LFO square wave" data-param="modulation.lfoSquare" type="checkbox"><span>Square</span></span></label>
+        <label>LFO rate<input data-param="modulation.lfoRate" data-unit="Hz" type="range" min="0.05" max="14" step="0.05" value="0.9"></label>
+        <label class="mod-mix-control"><span>MOD MIX</span><span class="mod-mix-slider"><span>A</span><input data-no-readout data-param="modulation.noiseBlend" type="range" min="0" max="100" value="0"><span>B</span></span></label>
         <label>MOD DEPTH<input data-param="modulation.depth" data-unit="%" type="range" min="0" max="100" value="50"></label>
         <label>Pitch / filter balance<input data-param="modulation.blend" data-unit="%" type="range" min="0" max="100" value="50"></label>
         <label>Oscillator modulation<select data-param="modulation.oscillatorEnabled"><option selected>On</option><option>Off</option></select></label>

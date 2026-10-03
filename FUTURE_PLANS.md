@@ -116,11 +116,12 @@ intent, not behaviour already promised by the current firmware.
 
 ## Modulation Sources
 
-- Add an internal LFO with triangle and square waveforms plus a musically
-  useful rate control. It must run independently of note gates and remain
-  available as the MOD SRC B alternative to Noise/external MOD SOURCE.
-- Map MIDI CC 1 (modulation wheel) to Minimoog Voice modulation depth, with
-  explicit pickup/combining behaviour relative to the stored depth control.
+- Implemented: an internal free-running triangle/square LFO, selectable as
+  MOD SRC B alongside Noise and external MOD SOURCE. Its 0.05--14 Hz rate and
+  shape are preset-backed Web UI controls.
+- Implemented: MIDI CC1 is an additive modulation-wheel offset to the stored
+  MOD DEPTH control. It no longer changes the inherited phase-distortion
+  parameter; CC27 retains that role.
 - Implemented: the Web UI's Model D-style Modulation Controllers save MOD SRC
   A (`External OSC 3 / CV In 2` or Filter Contour), MOD SRC B (Noise or
   external MOD SOURCE), and MOD MIX in each voice. The held-Down hardware
