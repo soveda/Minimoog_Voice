@@ -1,7 +1,7 @@
-# Cosmik M1N1: Post-Release Roadmap
+# Minimoog Voice: Current Roadmap
 
-Release 1.0.0 is the accepted baseline. This is an optional future-work queue,
-not a list of release blockers.
+This is the active queue for Cosmik M1N1. It deliberately excludes completed
+work so it can be used as the next-pass checklist.
 
 ## Current Baseline
 

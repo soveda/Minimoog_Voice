@@ -1,5 +1,5 @@
 const root = document.documentElement;
-const storageKey = "cosmik-m1n1-presets-v1";
+const storageKey = "minimoog-voice-experimental-presets-v1";
 const midi = { access: null, input: null, output: null, log: [], responseCommand: null, responseValues: [], voicePoll: null, localEdits: false };
 const preset = { baseline: null, active: null, current: null, userSlots: [] };
 const midiElements = {
