@@ -5152,9 +5152,18 @@ private:
     void setGlideControl(int32_t control)
     {
         glideControl = clamp12(control);
-        // Shift 1 is effectively immediate; shift 14 reaches within 1% of a
-        // wide interval in about two seconds at 48 kHz.
-        glideShift = 1u + (uint8_t)((glideControl * 13 + 2047) >> 12);
+        // The first pass spread the audible part of the response across only
+        // the upper half of the slider. These logarithmic-ish bands make a
+        // 100 ms setting useful while retaining a long two-second maximum.
+        if (glideControl < 21) glideShift = 6;         // under 10 ms
+        else if (glideControl < 41) glideShift = 7;    // about 20 ms
+        else if (glideControl < 82) glideShift = 8;    // about 40 ms
+        else if (glideControl < 164) glideShift = 9;   // about 80 ms
+        else if (glideControl < 328) glideShift = 10;  // about 160 ms
+        else if (glideControl < 655) glideShift = 11;  // about 320 ms
+        else if (glideControl < 1310) glideShift = 12; // about 640 ms
+        else if (glideControl < 2621) glideShift = 13; // about 1.25 s
+        else glideShift = 14;                          // about 2 s
     }
 
     int32_t responseCurve(int32_t x)

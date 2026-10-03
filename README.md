@@ -118,7 +118,7 @@ listing, capture, recall, delete, and live voice readback.
 
 ## Experimental Glide Test
 
-1. Flash `uf2/COSMIK_M1N1_0.1.57_EXPERIMENTAL_GLIDE.uf2` and play two notes a
+1. Flash `uf2/COSMIK_M1N1_0.1.59_EXPERIMENTAL_FASTER_GLIDE.uf2` and play two notes a
    fifth or octave apart from a Keystep over USB MIDI.
 2. In the Web UI set Glide to `0 ms`, send the voice, and confirm each note
    changes pitch immediately. Raise Glide to about `500 ms`, send again, and
