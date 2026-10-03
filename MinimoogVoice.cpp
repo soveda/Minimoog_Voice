@@ -259,8 +259,9 @@ public:
             int32_t lfo = (modulationSource * modulationDepth) >> 12;
             int32_t pitchLfo = oscillatorModulationEnabled
                 ? (lfo * (4095 - lfoDestinationControl)) >> 12 : 0;
-            int32_t pitchUnits = currentPitchUnits(pitchControl, pitchInputMillivolts) + pitchLfo;
-            int32_t freq = smoothPitch(pitchFrequency(pitchUnits));
+            int32_t basePitchUnits = currentPitchUnits(pitchControl, pitchInputMillivolts);
+            int32_t pitchUnits = glidePitchUnits(basePitchUnits) + pitchLfo;
+            int32_t freq = pitchFrequency(pitchUnits);
 
             int32_t cutoffLfo = filterModulationEnabled
                 ? (lfo * lfoDestinationControl) >> 12 : 0;
@@ -455,7 +456,7 @@ private:
     static constexpr uint32_t UserPresetFlashOffset =
         CustomEnvelopeFlashOffset - FLASH_SECTOR_SIZE;
     static constexpr uint32_t UserPresetMagic = 0x4D4E5650u; // MNVP
-    static constexpr uint16_t UserPresetVersion = 9u;
+    static constexpr uint16_t UserPresetVersion = 10u;
     static constexpr uint32_t SaveHoldSamples = 384000u;
     static constexpr uint32_t SaveConfirmSamples = 48000u;
     static constexpr uint32_t PresetWarningSamples = 192000u; // Four seconds.
@@ -629,6 +630,24 @@ private:
         int32_t filterModulationEnabled; int32_t oscillatorModulationEnabled;
         int32_t modulationPrimarySource; int32_t modulationSecondarySource;
         int32_t lfoRate; int32_t lfoShape;
+        int32_t glide = 0;
+    };
+
+    // Version 9 is the passed internal-LFO/CC1 layout. Keep it intact so
+    // stored user voices acquire the new glide control at zero rather than
+    // changing their response when this firmware first boots.
+    struct SavedUserVoiceV9
+    {
+        int32_t pitch; int32_t osc2Interval; int32_t wave1; int32_t wave2;
+        int32_t osc1Level; int32_t osc2Level; int32_t externalLevel;
+        int32_t externalRange; int32_t filterCutoff; int32_t oscillatorMix;
+        int32_t contour; int32_t resonance; int32_t externalOffset;
+        int32_t lfoDepth; int32_t lfoDestination; int32_t osc1Range;
+        int32_t osc2Range; int32_t noiseLevel; int32_t noiseColour;
+        int32_t modulationNoiseBlend; int32_t filterHighPass;
+        int32_t filterModulationEnabled; int32_t oscillatorModulationEnabled;
+        int32_t modulationPrimarySource; int32_t modulationSecondarySource;
+        int32_t lfoRate; int32_t lfoShape;
     };
 
     struct SavedUserContourV3
@@ -761,6 +780,19 @@ private:
         uint8_t reserved[7];
         uint8_t names[PresetSlotCount][16];
         SavedUserVoiceV8 voices[PresetSlotCount];
+        SavedUserContour contours[PresetSlotCount];
+        uint32_t checksum;
+    };
+
+    struct SavedUserPresetBankV9
+    {
+        uint32_t magic;
+        uint16_t version;
+        uint16_t size;
+        uint8_t loadedMask;
+        uint8_t reserved[7];
+        uint8_t names[PresetSlotCount][16];
+        SavedUserVoiceV9 voices[PresetSlotCount];
         SavedUserContour contours[PresetSlotCount];
         uint32_t checksum;
     };
@@ -976,7 +1008,7 @@ private:
     // ---------------------------------------------------------
     void outputSynthVoice()
     {
-        int32_t freq = smoothPitch(pitchFrequency(pitchUnits(pitchControl, 0)));
+        int32_t freq = pitchFrequency(glidePitchUnits(pitchUnits(pitchControl, 0)));
         int32_t wave1 = clamp12(waveControl);
         int32_t wave2 = clamp12(wave2Control);
 
@@ -1809,7 +1841,7 @@ private:
 
     void appendMinimoogVoice(uint8_t* payload, uint32_t& offset, const SavedUserVoice& voice)
     {
-        const int32_t values[] = {voice.pitch, voice.osc2Interval, voice.wave1, voice.wave2, voice.osc1Level, voice.osc2Level, voice.externalLevel, voice.externalRange, voice.filterCutoff, voice.oscillatorMix, voice.contour, voice.resonance, voice.externalOffset, voice.lfoDepth, voice.lfoDestination, voice.osc1Range, voice.osc2Range, voice.noiseLevel, voice.noiseColour, voice.modulationNoiseBlend, voice.filterHighPass, voice.filterModulationEnabled, voice.oscillatorModulationEnabled, voice.modulationPrimarySource, voice.modulationSecondarySource, voice.lfoRate, voice.lfoShape};
+        const int32_t values[] = {voice.pitch, voice.osc2Interval, voice.wave1, voice.wave2, voice.osc1Level, voice.osc2Level, voice.externalLevel, voice.externalRange, voice.filterCutoff, voice.oscillatorMix, voice.contour, voice.resonance, voice.externalOffset, voice.lfoDepth, voice.lfoDestination, voice.osc1Range, voice.osc2Range, voice.noiseLevel, voice.noiseColour, voice.modulationNoiseBlend, voice.filterHighPass, voice.filterModulationEnabled, voice.oscillatorModulationEnabled, voice.modulationPrimarySource, voice.modulationSecondarySource, voice.lfoRate, voice.lfoShape, voice.glide};
         for (int32_t value : values) { uint16_t safe = clamp12(value); payload[offset++] = safe & 0x7Fu; payload[offset++] = safe >> 7; }
     }
 
@@ -1824,9 +1856,9 @@ private:
 
     SavedUserVoice readMinimoogVoice(uint32_t& offset)
     {
-        int32_t values[27] = {};
-        for (uint32_t i = 0; i < 27u; ++i) { values[i] = (sysexBuffer[offset] & 0x7Fu) | ((sysexBuffer[offset + 1u] & 0x7Fu) << 7); offset += 2u; }
-        return {values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13], values[14], values[15], values[16], values[17], values[18], values[19], values[20], values[21], values[22], values[23], values[24], values[25], values[26]};
+        int32_t values[28] = {};
+        for (uint32_t i = 0; i < 28u; ++i) { values[i] = (sysexBuffer[offset] & 0x7Fu) | ((sysexBuffer[offset + 1u] & 0x7Fu) << 7); offset += 2u; }
+        return {values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13], values[14], values[15], values[16], values[17], values[18], values[19], values[20], values[21], values[22], values[23], values[24], values[25], values[26], values[27]};
     }
 
     SavedUserContour readMinimoogContour(uint32_t& offset)
@@ -1841,7 +1873,7 @@ private:
         uint8_t command = sysexBuffer[5];
         if (command == MinimoogMidiCommandIdentityRequest && sysexLength == 6u)
         {
-            uint8_t payload[] = {9u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
+            uint8_t payload[] = {10u, userPresetBank.loadedMask, activePresetBank, activePresetSlot};
             queueMinimoogResponse(MinimoogMidiCommandIdentityResponse, payload, sizeof(payload));
             return;
         }
@@ -1854,7 +1886,7 @@ private:
         if (command == MinimoogMidiCommandRequestUser && sysexLength == 7u)
         {
             uint8_t slot = sysexBuffer[6] & 0x07u; if (!(userPresetBank.loadedMask & (1u << slot))) return;
-            uint8_t payload[89] = {slot}; uint32_t offset = 1;
+            uint8_t payload[91] = {slot}; uint32_t offset = 1;
             for (uint32_t i = 0; i < 16u; ++i) payload[offset++] = userPresetBank.names[slot][i];
             appendMinimoogVoice(payload, offset, userPresetBank.voices[slot]);
             appendMinimoogContour(payload, offset, userPresetBank.contours[slot]);
@@ -1893,7 +1925,7 @@ private:
             uint8_t payload[] = {MinimoogMidiCommandCaptureUser, slot, userPresetBank.loadedMask}; queueMinimoogResponse(MinimoogMidiCommandAck, payload, sizeof(payload));
             return;
         }
-        if (command == MinimoogMidiCommandSetVoice && sysexLength == 78u)
+        if (command == MinimoogMidiCommandSetVoice && sysexLength == 80u)
         {
             uint32_t offset = 6;
             applyUserVoice(readMinimoogVoice(offset));
@@ -1904,7 +1936,7 @@ private:
         }
         if (command == MinimoogMidiCommandRequestVoice && sysexLength == 6u)
         {
-            uint8_t payload[72] = {}; uint32_t offset = 0;
+            uint8_t payload[74] = {}; uint32_t offset = 0;
             appendMinimoogVoice(payload, offset, currentUserVoice());
             appendMinimoogContour(payload, offset, currentUserContour());
             queueMinimoogResponse(MinimoogMidiCommandVoiceResponse, payload, offset);
@@ -3038,6 +3070,16 @@ private:
         return presets[slot & 0x07u];
     }
 
+    int32_t factoryGlideControl(uint8_t slot) const
+    {
+        // 0--4095 maps to 0--2000 ms in the Web UI. Preserve the intended
+        // character of the named glide/bass factory voices.
+        static constexpr int32_t controls[PresetSlotCount] = {
+            0, 215, 0, 0, 369, 266, 0, 0
+        };
+        return controls[slot & 0x07u];
+    }
+
     void applyFactoryPreset(uint8_t slot)
     {
         const VoicePreset& preset = factoryPreset(slot);
@@ -3067,6 +3109,8 @@ private:
         modulationSecondarySourceControl = preset.modulationSecondarySource;
         lfoRateControl = preset.lfoRate;
         lfoShapeControl = preset.lfoShape;
+        setGlideControl(factoryGlideControl(slot));
+        glidePitchInitialised = false;
         applyFactoryContour(slot);
         activePresetSlot = slot & 0x07u;
     }
@@ -3101,7 +3145,8 @@ private:
             noiseLevelControl, noiseColourControl, modulationNoiseBlendControl,
             filterHighPassControl ? 4095 : 0, filterModulationEnabled ? 4095 : 0,
             oscillatorModulationEnabled ? 4095 : 0, modulationPrimarySourceControl,
-            modulationSecondarySourceControl, lfoRateControl, lfoShapeControl};
+            modulationSecondarySourceControl, lfoRateControl, lfoShapeControl,
+            glideControl};
     }
 
     SavedUserContour currentUserContour() const
@@ -3135,6 +3180,8 @@ private:
         modulationSecondarySourceControl = clamp12(voice.modulationSecondarySource);
         lfoRateControl = clamp12(voice.lfoRate);
         lfoShapeControl = clamp12(voice.lfoShape);
+        setGlideControl(voice.glide);
+        glidePitchInitialised = false;
         osc2Detune = 0;
     }
 
@@ -4252,6 +4299,11 @@ private:
         return *reinterpret_cast<const SavedUserPresetBankV8*>(XIP_BASE + UserPresetFlashOffset);
     }
 
+    const SavedUserPresetBankV9& flashUserPresetBankV9()
+    {
+        return *reinterpret_cast<const SavedUserPresetBankV9*>(XIP_BASE + UserPresetFlashOffset);
+    }
+
     uint32_t checksumUserPresetBank(const SavedUserPresetBank& state)
     {
         const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&state);
@@ -4321,6 +4373,14 @@ private:
         return checksum;
     }
 
+    uint32_t checksumUserPresetBankV9(const SavedUserPresetBankV9& state)
+    {
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&state);
+        uint32_t checksum = 2166136261u;
+        for (uint32_t i = 0; i < sizeof(state) - sizeof(uint32_t); ++i) { checksum ^= bytes[i]; checksum *= 16777619u; }
+        return checksum;
+    }
+
     bool isValidUserPresetBank(const SavedUserPresetBank& state)
     {
         return state.magic == UserPresetMagic && state.version == UserPresetVersion &&
@@ -4370,6 +4430,12 @@ private:
     {
         return state.magic == UserPresetMagic && state.version == 8u &&
             state.size == sizeof(SavedUserPresetBankV8) && state.checksum == checksumUserPresetBankV8(state);
+    }
+
+    bool isValidUserPresetBankV9(const SavedUserPresetBankV9& state)
+    {
+        return state.magic == UserPresetMagic && state.version == 9u &&
+            state.size == sizeof(SavedUserPresetBankV9) && state.checksum == checksumUserPresetBankV9(state);
     }
 
     SavedUserContour migrateUserContourV3(const SavedUserContourV3& legacy)
@@ -4470,6 +4536,20 @@ private:
             1024, 0};
     }
 
+    SavedUserVoice migrateUserVoiceV9(const SavedUserVoiceV9& legacy)
+    {
+        return {legacy.pitch, legacy.osc2Interval, legacy.wave1, legacy.wave2,
+            legacy.osc1Level, legacy.osc2Level, legacy.externalLevel,
+            legacy.externalRange, legacy.filterCutoff, legacy.oscillatorMix,
+            legacy.contour, legacy.resonance, legacy.externalOffset,
+            legacy.lfoDepth, legacy.lfoDestination, legacy.osc1Range,
+            legacy.osc2Range, legacy.noiseLevel, legacy.noiseColour,
+            legacy.modulationNoiseBlend, legacy.filterHighPass,
+            legacy.filterModulationEnabled, legacy.oscillatorModulationEnabled,
+            legacy.modulationPrimarySource, legacy.modulationSecondarySource,
+            legacy.lfoRate, legacy.lfoShape, 0};
+    }
+
     void loadUserPresetBank()
     {
         const SavedUserPresetBank& saved = flashUserPresetBank();
@@ -4477,6 +4557,19 @@ private:
         {
             userPresetBank = saved;
             return;
+        }
+
+        const SavedUserPresetBankV9& legacyV9 = flashUserPresetBankV9();
+        if (isValidUserPresetBankV9(legacyV9))
+        {
+            userPresetBank.loadedMask = legacyV9.loadedMask;
+            for (uint32_t slot = 0; slot < PresetSlotCount; ++slot)
+            {
+                for (uint32_t character = 0; character < 16u; ++character) userPresetBank.names[slot][character] = legacyV9.names[slot][character];
+                userPresetBank.voices[slot] = migrateUserVoiceV9(legacyV9.voices[slot]);
+                userPresetBank.contours[slot] = legacyV9.contours[slot];
+            }
+            saveUserPresetBank(); return;
         }
 
         const SavedUserPresetBankV8& legacyV8 = flashUserPresetBankV8();
@@ -5035,20 +5128,33 @@ private:
         return (int32_t)freq;
     }
 
-    int32_t smoothPitch(int32_t target)
+    int32_t glidePitchUnits(int32_t target)
     {
-        if (smoothedFreq == 0)
-            smoothedFreq = target;
+        // The slider is converted to a shift when the value changes, leaving
+        // this per-sample path division- and multiply-free. Pitch is retained
+        // with fractional precision so slow slides neither stick nor step.
+        int32_t targetQ16 = target * 65536;
+        if (!glidePitchInitialised || glideControl == 0)
+        {
+            glidedPitchQ16 = targetQ16;
+            glidePitchInitialised = true;
+            return target;
+        }
 
-        int32_t delta = target - smoothedFreq;
-        int32_t step = delta >> 9;
-
+        int32_t delta = targetQ16 - glidedPitchQ16;
+        int32_t step = delta >> glideShift;
         if (step == 0 && delta != 0)
             step = delta > 0 ? 1 : -1;
+        glidedPitchQ16 += step;
+        return glidedPitchQ16 >> 16;
+    }
 
-        smoothedFreq += step;
-
-        return smoothedFreq;
+    void setGlideControl(int32_t control)
+    {
+        glideControl = clamp12(control);
+        // Shift 1 is effectively immediate; shift 14 reaches within 1% of a
+        // wide interval in about two seconds at 48 kHz.
+        glideShift = 1u + (uint8_t)((glideControl * 13 + 2047) >> 12);
     }
 
     int32_t responseCurve(int32_t x)
@@ -5157,7 +5263,10 @@ private:
     int32_t waveControl = 1638;  // Saw.
     int32_t wave2Control = 2730; // Square.
     int32_t recipeBankControl = 0;
-    int32_t smoothedFreq = 0;
+    int32_t glidedPitchQ16 = 0;
+    int32_t glideControl = 0;
+    uint8_t glideShift = 1;
+    bool glidePitchInitialised = false;
     int32_t osc2Detune = 0;
     int32_t osc2IntervalControl = 2048;
     int32_t osc1LevelControl = 4095;

@@ -75,6 +75,10 @@ The LFO has triangle/square shapes and a 0.05--14 Hz rate control.
 MIDI CC1 adds to MOD DEPTH, matching the role of a modulation wheel. Independent
 oscillator and filter modulation enables route the mixed source. Tracking uses the current MIDI or pitch-CV
 note relative to C3, so a positive setting keeps brighter notes more open.
+The Web UI Glide control is preset-backed and ranges from immediate response to
+an approximately two-second all-note slide. It acts on MIDI and pitch-CV base
+pitch before modulation, and `CV Out 1` follows the same glide for external
+OSC 3.
 
 The oscillator pass uses a generated, zero-DC, multiband wavetable bank:
 triangle, triangle/sawtooth (sharktooth), saw, square, wide rectangle, and
@@ -91,8 +95,7 @@ bank and eight named card-backed user slots, plus a WebMIDI connection and
 developer monitor. `Send to card` transfers the complete live voice, including
 noise, both ADS contours, and keyboard tracking; card control changes are polled back
 into the UI. Capturing a user slot persists those contour settings alongside
-the voice. Existing version-1 user slots migrate automatically with neutral,
-middle-position contour settings. The card uses the compact `MNV1` request
+the voice. Existing user slots migrate automatically with glide at zero. The card uses the compact `MNV1` request
 protocol and a reliable MIDI CC response channel for identity, user-slot
 listing, capture, recall, delete, and live voice readback.
 
@@ -112,6 +115,22 @@ listing, capture, recall, delete, and live voice readback.
    unchanged.
 5. Save the edited voice to a user slot, power-cycle, recall it, and verify all
    six ADS values and tracking return in the Web UI.
+
+## Experimental Glide Test
+
+1. Flash `uf2/COSMIK_M1N1_0.1.57_EXPERIMENTAL_GLIDE.uf2` and play two notes a
+   fifth or octave apart from a Keystep over USB MIDI.
+2. In the Web UI set Glide to `0 ms`, send the voice, and confirm each note
+   changes pitch immediately. Raise Glide to about `500 ms`, send again, and
+   confirm every new note slides to its pitch; `2000 ms` should be distinctly
+   slower.
+3. Patch `CV Out 1` to an external oscillator's pitch input and `Audio In 2`
+   to its return. Confirm the external oscillator slides with the two internal
+   oscillators, without a beat drifting between them.
+4. Save a non-zero Glide setting to a user slot, power-cycle, recall it, and
+   use the Web UI's card readback to confirm the same value returns. Recall an
+   existing user slot saved before this firmware and confirm its Glide reads
+   `0 ms`.
 
 ## Build
 
